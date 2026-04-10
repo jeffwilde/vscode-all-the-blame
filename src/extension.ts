@@ -59,7 +59,7 @@ export class Extension {
 		if (toolUrl) {
 			await commands.executeCommand("vscode.open", toolUrl);
 		} else {
-			await errorMessage("Empty gitblame.commitUrl");
+			await errorMessage("Empty gitblaime.commitUrl");
 		}
 	}
 
@@ -122,7 +122,7 @@ export class Extension {
 			await env.clipboard.writeText(toolUrl.toString());
 			await infoMessage("Copied tool URL");
 		} else {
-			await errorMessage("gitblame.commitUrl config empty");
+			await errorMessage("gitblaime.commitUrl config empty");
 		}
 	}
 
@@ -147,7 +147,7 @@ export class Extension {
 
 		const ignoreWhitespace = PropertyStore.get("ignoreWhitespace") ? "-w " : "";
 		const terminal = window.createTerminal({
-			name: `Git Blame: git show ${hash}`,
+			name: `Git Blaime: git show ${hash}`,
 			iconPath: new ThemeIcon("git-commit"),
 			isTransient: true,
 			cwd: dirname(editor.document.fileName),
@@ -263,7 +263,7 @@ export class Extension {
 		}
 
 		if (this.isFileMaxLineCount(editor.document)) {
-			Logger.info("Git Blame is disabled for the current file");
+			Logger.info("Git Blaime is disabled for the current file");
 			return;
 		}
 

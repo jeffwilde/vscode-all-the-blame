@@ -35,7 +35,7 @@ export async function setupPropertyStore(): Promise<MockedPropertyStore> {
 	for (const [key, prop] of Object.entries(
 		packageImport.contributes.configuration.properties,
 	)) {
-		properties[key.replace("gitblame.", "")] = prop.default;
+		properties[key.replace("gitblaime.", "")] = prop.default;
 	}
 
 	return new MockedPropertyStore((key) => properties[key]);

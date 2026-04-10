@@ -1,10 +1,13 @@
-# Git Blame
+# Git Blaime
+
+AI tooling aware git blame.
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Sertion_vscode-gitblame&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Sertion_vscode-gitblame)
 
 Features:
 * See Git blame information in the status bar for the currently selected line.
 * See Git blame information in-line for your currently selected line.
+* **Automatic co-author resolution** — when a line is attributed to a bot (e.g. `devin-ai-integration[bot]`), the extension fetches the full commit message and displays the human co-author instead.
 * See Git blame information on the last selected line in your editor.
 * Quick link to open the latest commit on the current line in the most popular online git tools.
 * Open `git show` for the latest commit on the current line in an editor terminal.
@@ -15,25 +18,27 @@ Features:
 
 ![Feature Usage](https://raw.githubusercontent.com/Sertion/vscode-gitblame/master/images/preview.png)
 
-*Git Blame* adds git blame information to your vscode compatible view. See information about what commit last changed a line and how long ago it was. Click the message to see more information about the commit. It is possible to edit all of these information messages in the settings. There are multiple tokens available. These are described below.
+*Git Blaime* adds git blame information to your vscode compatible view. See information about what commit last changed a line and how long ago it was. Click the message to see more information about the commit. It is possible to edit all of these information messages in the settings. There are multiple tokens available. These are described below.
 
-*Git Blame* works very well with WSL but does not work with the web browser based editors.
+When a commit is authored by a bot account (name ending in `[bot]`), *Git Blaime* automatically looks for `Co-authored-by` trailers in the commit message and displays the first human co-author as the blame author.
+
+*Git Blaime* works very well with WSL but does not work with the web browser based editors.
 
 ## Commands
 ### Show quick info
-The command `gitblame.quickInfo` opens a information message with the current line's blamed commit's information.
+The command `gitblaime.quickInfo` opens a information message with the current line's blamed commit's information.
 ### View last change online
-The command `gitblame.online` opens the configured url for the current line's online tool.
+The command `gitblaime.online` opens the configured url for the current line's online tool.
 ### Copy hash to clipboard
-The command `gitblame.addCommitHashToClipboard` copies the current line's blamed commit hash to the clipboard.
+The command `gitblaime.addCommitHashToClipboard` copies the current line's blamed commit hash to the clipboard.
 ### Copy tool URL to clipboard
-The command `gitblame.addToolUrlToClipboard` copies the tool url for the current line's blamed commit to the clipboard.
+The command `gitblaime.addToolUrlToClipboard` copies the tool url for the current line's blamed commit to the clipboard.
 ### Git show for current line hash
-The command `gitblame.gitShow` shows the current comit in a terminal using `git show $HASH`.
+The command `gitblaime.gitShow` shows the current comit in a terminal using `git show $HASH`.
 
 ## Configuration
 
-### `gitblame.commitUrl`
+### `gitblaime.commitUrl`
 > Type: `string`
 
 > Default value: `"${tool.protocol}//${gitorigin.hostname}${gitorigin.port}${gitorigin.path}${tool.commitpath}${hash}"`
@@ -63,98 +68,98 @@ Available tokens:
 * `${tool.protocol}` - `http:` or `https:`
 * `${tool.commitpath}` - `/commit/` or `/commits/`
 
-### `gitblame.pluralWebPathSubstrings`
+### `gitblaime.pluralWebPathSubstrings`
 > Type: `string[]`
 
 > Default value: `["bitbucket", "atlassian"]`
 
-An array of substrings that, when present in the git origin URL, replaces _commit_ with _commits_ in the `gitblame.commitUrl` token `tool.commitpath`. Set the value to something that matches anything to recreate the old `gitblame.isWebPathPlural`-setting.
+An array of substrings that, when present in the git origin URL, replaces _commit_ with _commits_ in the `gitblaime.commitUrl` token `tool.commitpath`. Set the value to something that matches anything to recreate the old `gitblaime.isWebPathPlural`-setting.
 
-### `gitblame.ignoreWhitespace`
+### `gitblaime.ignoreWhitespace`
 > Type: `boolean`
 
 > Default value: `false`
 
 Use the git blame `-w` flag.
 
-### `gitblame.infoMessageFormat`
+### `gitblaime.infoMessageFormat`
 > Type: `string`
 
 > Default value: `"${commit.hash} ${commit.summary}"`
 
-Message that appears when the `gitblame.quickInfo` command executes (when you click the status bar message).
+Message that appears when the `gitblaime.quickInfo` command executes (when you click the status bar message).
 
-### `gitblame.statusBarMessageFormat`
+### `gitblaime.statusBarMessageFormat`
 > Type: `string`
 
 > Default value: `"Blame ${author.name} (${time.ago})"`
 
 Message in the status bar about the current line's git blame commit. (Available tokens)[#message-tokens].
 
-### `gitblame.statusBarMessageNoCommit`
+### `gitblaime.statusBarMessageNoCommit`
 > Type: `string`
 
 > Default value: `"Not Committed Yet"`
 
 Message in the status bar about the current line when no commit can be found. _No available tokens_.
 
-### `gitblame.statusBarPositionPriority`
+### `gitblaime.statusBarPositionPriority`
 > Type: `number`
 
 > Default value: `500`
 
 Priority where the status bar view should be placed. Higher value should be placed further to the left.
 
-### `gitblame.inlineMessageFormat`
+### `gitblaime.inlineMessageFormat`
 > Type: `string`
 
 > Default value: `"Blame ${author.name} (${time.ago})"`
 
 Message on the current line in the editor about the line's git blame commit. (Available tokens)[#message-tokens].
 
-### `gitblame.inlineMessageNoCommit`
+### `gitblaime.inlineMessageNoCommit`
 > Type: `string`
 
 > Default value: `"Not Committed Yet"`
 
 Message on the current line when no commit can be found. _No available tokens_.
 
-### `gitblame.inlineMessageEnabled`
+### `gitblaime.inlineMessageEnabled`
 > Type: `boolean`
 
 > Default value: `false`
 
 To enable the inline git blame view. Shows blame information at the end of the current line if available.
 
-### `gitblame.inlineMessageMargin`
+### `gitblaime.inlineMessageMargin`
 > Type: `number`
 
 > Default value: `2`
 
 The amount of margin between line and inline blame view
 
-### `gitblame.currentUserAlias`
+### `gitblaime.currentUserAlias`
 > Type: `string` or `null`
 
 > Default value: `null`
 
 Replaces `${author.name}` and `${committer.name}` when the git config `user.email` matches the author's or committer's email address.
 
-### `gitblame.delayBlame`
+### `gitblaime.delayBlame`
 > Type: `number`
 
 > Default value: `0`
 
 This setting adds a delay (in milliseconds) before the blame is displayed
 
-### `gitblame.parallelBlames`
+### `gitblaime.parallelBlames`
 > Type: `number`
 
 > Default value: `2`
 
 Limit how many git blame processes the extension can run in parallel. This can help with high CPU usage.
 
-### `gitblame.extendedHoverInformation`
+### `gitblaime.extendedHoverInformation`
 > Type: `string`
 
 > Default value: `"off"`
@@ -167,14 +172,14 @@ Availiable values:
 * `"inline"`
 * `"status"`
 
-### `gitblame.revsFile`
+### `gitblaime.revsFile`
 > Type: `string[]`
 
 > Default value: `[]`
 
 List of refs-file names to look for relative to the closest `.git`-folder. The first file in the list that is [accessible](https://nodejs.org/docs/latest-v22.x/api/fs.html#fspromisesaccesspath-mode) will be used with the [`-S` argument](https://git-scm.com/docs/git-blame#Documentation/git-blame.txt--Sltrevs-filegt) in `git blame`.
 
-### `gitblame.detectMoveOrCopyFromOtherFiles`
+### `gitblaime.detectMoveOrCopyFromOtherFiles`
 > Type: `number`
 
 > Default value: `0`
@@ -194,8 +199,8 @@ Availiable values:
 | `${commit.hash,length}`       | Yes      | `length`  |            64 | the first `length` characters of the 40-bit (or 64-bit) hash unique to the commit |
 | `${commit.hash_short,length}` | Yes      | `length`  |             7 | the first `length` characters of the 40-bit (or 64-bit) hash unique to the commit |
 | `${commit.summary}`           | Yes      | `length`  |         65536 | the first `length` characters of the first line of the commit message |
-| `${author.name}`              | No       | -         | -             | the commit author's name |
-| `${author.mail}`              | No       | -         | -             | the commit author's e-mail |
+| `${author.name}`              | No       | -         | -             | the commit author's name (resolved to human co-author for bot commits) |
+| `${author.mail}`              | No       | -         | -             | the commit author's e-mail (resolved to human co-author for bot commits) |
 | `${author.timestamp}`         | No       | -         | -             | timestamp for the commit author's commit |
 | `${author.tz}`                | No       | -         | -             | the commit author's time zone |
 | `${author.date}`              | No       | -         | -             | the commit author's date (ex: 1990-09-16) |
@@ -208,10 +213,11 @@ Availiable values:
 | `${time.c_ago}`               | No       | -         | -             | displays an estimation of how long ago the committer committed (e.g. `10 hours ago`, `20 days ago`, `4 months ago`) |
 
 ## Known issues
-### The `gitblame.gitShow` command does not work with _my shell_
+### The `gitblaime.gitShow` command does not work with _my shell_
 
-If your default terminal profile is set to `cmd.exe` `gitblame.gitShow` will not function correctly. Fix this by using a unix compatible shell.
+If your default terminal profile is set to `cmd.exe` `gitblaime.gitShow` will not function correctly. Fix this by using a unix compatible shell.
 
 ## Acknowledgements
 
 * Logo is a derivative of [git-scm.com/community/logos](https://git-scm.com/community/logos) ([CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/)) by [Jason Long](https://bsky.app/profile/jasonlong.me).
+* Originally forked from [Sertion/vscode-gitblame](https://github.com/Sertion/vscode-gitblame).
