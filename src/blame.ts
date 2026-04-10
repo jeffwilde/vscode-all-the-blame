@@ -25,7 +25,7 @@ export class Blamer {
 
 	public constructor() {
 		this.configChange = workspace.onDidChangeConfiguration((e) => {
-			if (e.affectsConfiguration("gitblaime.parallelBlames")) {
+			if (e.affectsConfiguration("trueblame.parallelBlames")) {
 				this.blameQueue.updateParallel(PropertyStore.get("parallelBlames"));
 			}
 		});

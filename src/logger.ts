@@ -15,7 +15,7 @@ export class Logger {
 	public static async createInstance(override?: LoggerPipe): Promise<Logger> {
 		const channel =
 			override ??
-			(await getvscode())?.window.createOutputChannel("Git Blaime", {
+			(await getvscode())?.window.createOutputChannel("True Blame", {
 				log: true,
 			});
 		Logger.instance = new Logger(channel);

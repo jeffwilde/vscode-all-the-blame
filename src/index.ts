@@ -33,25 +33,25 @@ export async function activate(
 		}),
 		import("./logger.js").then((i) => i.Logger.createInstance()),
 		commands.then((e) =>
-			e?.registerCommand("gitblaime.quickInfo", () => void app?.showMessage()),
+			e?.registerCommand("trueblame.quickInfo", () => void app?.showMessage()),
 		),
 		commands.then((e) =>
-			e?.registerCommand("gitblaime.online", () => void app?.blameLink()),
+			e?.registerCommand("trueblame.online", () => void app?.blameLink()),
 		),
 		commands.then((e) =>
 			e?.registerCommand(
-				"gitblaime.addCommitHashToClipboard",
+				"trueblame.addCommitHashToClipboard",
 				() => void app?.copyHash(),
 			),
 		),
 		commands.then((e) =>
 			e?.registerCommand(
-				"gitblaime.addToolUrlToClipboard",
+				"trueblame.addToolUrlToClipboard",
 				() => void app?.copyToolUrl(),
 			),
 		),
 		commands.then((e) =>
-			e?.registerCommand("gitblaime.gitShow", () => void app?.runGitShow()),
+			e?.registerCommand("trueblame.gitShow", () => void app?.runGitShow()),
 		),
 	]).then((disposables) =>
 		context.subscriptions.push(...disposables.filter((e) => !!e)),

@@ -41,7 +41,7 @@ export class StatusBarView {
 	constructor() {
 		this.statusBar = this.createStatusBarItem();
 		this.configChange = workspace.onDidChangeConfiguration((e) => {
-			if (e.affectsConfiguration("gitblaime.statusBarPositionPriority")) {
+			if (e.affectsConfiguration("trueblame.statusBarPositionPriority")) {
 				const newPriority = PropertyStore.get("statusBarPositionPriority");
 				if (this.statusBarPriority !== newPriority) {
 					this.statusBarPriority = newPriority;
@@ -118,10 +118,10 @@ export class StatusBarView {
 
 	private getCommand(): string {
 		return {
-			"Open tool URL": "gitblaime.online",
-			"Open git show": "gitblaime.gitShow",
-			"Copy hash to clipboard": "gitblaime.addCommitHashToClipboard",
-			"Show info message": "gitblaime.quickInfo",
+			"Open tool URL": "trueblame.online",
+			"Open git show": "trueblame.gitShow",
+			"Copy hash to clipboard": "trueblame.addCommitHashToClipboard",
+			"Show info message": "trueblame.quickInfo",
 		}[PropertyStore.get("statusBarMessageClickAction")];
 	}
 
@@ -254,7 +254,7 @@ export class StatusBarView {
 					after: {
 						contentText,
 						margin: `0 0 0 ${PropertyStore.get("inlineMessageMargin")}rem`,
-						color: new ThemeColor("gitblaime.inlineMessage"),
+						color: new ThemeColor("trueblame.inlineMessage"),
 					},
 				},
 				range: new Range(decorationPosition, decorationPosition),
