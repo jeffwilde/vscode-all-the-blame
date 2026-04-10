@@ -33,25 +33,25 @@ export async function activate(
 		}),
 		import("./logger.js").then((i) => i.Logger.createInstance()),
 		commands.then((e) =>
-			e?.registerCommand("trueblame.quickInfo", () => void app?.showMessage()),
+			e?.registerCommand("alltheblame.quickInfo", () => void app?.showMessage()),
 		),
 		commands.then((e) =>
-			e?.registerCommand("trueblame.online", () => void app?.blameLink()),
+			e?.registerCommand("alltheblame.online", () => void app?.blameLink()),
 		),
 		commands.then((e) =>
 			e?.registerCommand(
-				"trueblame.addCommitHashToClipboard",
+				"alltheblame.addCommitHashToClipboard",
 				() => void app?.copyHash(),
 			),
 		),
 		commands.then((e) =>
 			e?.registerCommand(
-				"trueblame.addToolUrlToClipboard",
+				"alltheblame.addToolUrlToClipboard",
 				() => void app?.copyToolUrl(),
 			),
 		),
 		commands.then((e) =>
-			e?.registerCommand("trueblame.gitShow", () => void app?.runGitShow()),
+			e?.registerCommand("alltheblame.gitShow", () => void app?.runGitShow()),
 		),
 	]).then((disposables) =>
 		context.subscriptions.push(...disposables.filter((e) => !!e)),

@@ -143,7 +143,7 @@ export async function getToolUrl(
 	}
 
 	errorMessage(
-		`Malformed trueblame.commitUrl: '${parsedUrl}' from '${PropertyStore.get(
+		`Malformed alltheblame.commitUrl: '${parsedUrl}' from '${PropertyStore.get(
 			"commitUrl",
 		)}'`,
 	);

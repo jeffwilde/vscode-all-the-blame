@@ -59,7 +59,7 @@ export class Extension {
 		if (toolUrl) {
 			await commands.executeCommand("vscode.open", toolUrl);
 		} else {
-			await errorMessage("Empty trueblame.commitUrl");
+			await errorMessage("Empty alltheblame.commitUrl");
 		}
 	}
 
@@ -122,7 +122,7 @@ export class Extension {
 			await env.clipboard.writeText(toolUrl.toString());
 			await infoMessage("Copied tool URL");
 		} else {
-			await errorMessage("trueblame.commitUrl config empty");
+			await errorMessage("alltheblame.commitUrl config empty");
 		}
 	}
 
@@ -147,7 +147,7 @@ export class Extension {
 
 		const ignoreWhitespace = PropertyStore.get("ignoreWhitespace") ? "-w " : "";
 		const terminal = window.createTerminal({
-			name: `True Blame: git show ${hash}`,
+			name: `All the Blame: git show ${hash}`,
 			iconPath: new ThemeIcon("git-commit"),
 			isTransient: true,
 			cwd: dirname(editor.document.fileName),
@@ -263,7 +263,7 @@ export class Extension {
 		}
 
 		if (this.isFileMaxLineCount(editor.document)) {
-			Logger.info("True Blame is disabled for the current file");
+			Logger.info("All the Blame is disabled for the current file");
 			return;
 		}
 

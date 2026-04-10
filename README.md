@@ -1,4 +1,4 @@
-# True Blame
+# All the Blame
 
 AI tooling aware git blame.
 
@@ -18,27 +18,27 @@ Features:
 
 ![Feature Usage](https://raw.githubusercontent.com/Sertion/vscode-gitblame/master/images/preview.png)
 
-*True Blame* adds git blame information to your vscode compatible view. See information about what commit last changed a line and how long ago it was. Click the message to see more information about the commit. It is possible to edit all of these information messages in the settings. There are multiple tokens available. These are described below.
+*All the Blame* adds git blame information to your vscode compatible view. See information about what commit last changed a line and how long ago it was. Click the message to see more information about the commit. It is possible to edit all of these information messages in the settings. There are multiple tokens available. These are described below.
 
-When a commit is authored by a bot account (name ending in `[bot]`), *True Blame* automatically looks for `Co-authored-by` trailers in the commit message and displays the first human co-author as the blame author.
+When a commit is authored by a bot account (name ending in `[bot]`), *All the Blame* automatically looks for `Co-authored-by` trailers in the commit message and displays the first human co-author as the blame author.
 
-*True Blame* works very well with WSL but does not work with the web browser based editors.
+*All the Blame* works very well with WSL but does not work with the web browser based editors.
 
 ## Commands
 ### Show quick info
-The command `trueblame.quickInfo` opens a information message with the current line's blamed commit's information.
+The command `alltheblame.quickInfo` opens a information message with the current line's blamed commit's information.
 ### View last change online
-The command `trueblame.online` opens the configured url for the current line's online tool.
+The command `alltheblame.online` opens the configured url for the current line's online tool.
 ### Copy hash to clipboard
-The command `trueblame.addCommitHashToClipboard` copies the current line's blamed commit hash to the clipboard.
+The command `alltheblame.addCommitHashToClipboard` copies the current line's blamed commit hash to the clipboard.
 ### Copy tool URL to clipboard
-The command `trueblame.addToolUrlToClipboard` copies the tool url for the current line's blamed commit to the clipboard.
+The command `alltheblame.addToolUrlToClipboard` copies the tool url for the current line's blamed commit to the clipboard.
 ### Git show for current line hash
-The command `trueblame.gitShow` shows the current comit in a terminal using `git show $HASH`.
+The command `alltheblame.gitShow` shows the current comit in a terminal using `git show $HASH`.
 
 ## Configuration
 
-### `trueblame.commitUrl`
+### `alltheblame.commitUrl`
 > Type: `string`
 
 > Default value: `"${tool.protocol}//${gitorigin.hostname}${gitorigin.port}${gitorigin.path}${tool.commitpath}${hash}"`
@@ -68,98 +68,98 @@ Available tokens:
 * `${tool.protocol}` - `http:` or `https:`
 * `${tool.commitpath}` - `/commit/` or `/commits/`
 
-### `trueblame.pluralWebPathSubstrings`
+### `alltheblame.pluralWebPathSubstrings`
 > Type: `string[]`
 
 > Default value: `["bitbucket", "atlassian"]`
 
-An array of substrings that, when present in the git origin URL, replaces _commit_ with _commits_ in the `trueblame.commitUrl` token `tool.commitpath`. Set the value to something that matches anything to recreate the old `trueblame.isWebPathPlural`-setting.
+An array of substrings that, when present in the git origin URL, replaces _commit_ with _commits_ in the `alltheblame.commitUrl` token `tool.commitpath`. Set the value to something that matches anything to recreate the old `alltheblame.isWebPathPlural`-setting.
 
-### `trueblame.ignoreWhitespace`
+### `alltheblame.ignoreWhitespace`
 > Type: `boolean`
 
 > Default value: `false`
 
 Use the git blame `-w` flag.
 
-### `trueblame.infoMessageFormat`
+### `alltheblame.infoMessageFormat`
 > Type: `string`
 
 > Default value: `"${commit.hash} ${commit.summary}"`
 
-Message that appears when the `trueblame.quickInfo` command executes (when you click the status bar message).
+Message that appears when the `alltheblame.quickInfo` command executes (when you click the status bar message).
 
-### `trueblame.statusBarMessageFormat`
+### `alltheblame.statusBarMessageFormat`
 > Type: `string`
 
 > Default value: `"Blame ${author.name} (${time.ago})"`
 
 Message in the status bar about the current line's git blame commit. (Available tokens)[#message-tokens].
 
-### `trueblame.statusBarMessageNoCommit`
+### `alltheblame.statusBarMessageNoCommit`
 > Type: `string`
 
 > Default value: `"Not Committed Yet"`
 
 Message in the status bar about the current line when no commit can be found. _No available tokens_.
 
-### `trueblame.statusBarPositionPriority`
+### `alltheblame.statusBarPositionPriority`
 > Type: `number`
 
 > Default value: `500`
 
 Priority where the status bar view should be placed. Higher value should be placed further to the left.
 
-### `trueblame.inlineMessageFormat`
+### `alltheblame.inlineMessageFormat`
 > Type: `string`
 
 > Default value: `"Blame ${author.name} (${time.ago})"`
 
 Message on the current line in the editor about the line's git blame commit. (Available tokens)[#message-tokens].
 
-### `trueblame.inlineMessageNoCommit`
+### `alltheblame.inlineMessageNoCommit`
 > Type: `string`
 
 > Default value: `"Not Committed Yet"`
 
 Message on the current line when no commit can be found. _No available tokens_.
 
-### `trueblame.inlineMessageEnabled`
+### `alltheblame.inlineMessageEnabled`
 > Type: `boolean`
 
 > Default value: `false`
 
 To enable the inline git blame view. Shows blame information at the end of the current line if available.
 
-### `trueblame.inlineMessageMargin`
+### `alltheblame.inlineMessageMargin`
 > Type: `number`
 
 > Default value: `2`
 
 The amount of margin between line and inline blame view
 
-### `trueblame.currentUserAlias`
+### `alltheblame.currentUserAlias`
 > Type: `string` or `null`
 
 > Default value: `null`
 
 Replaces `${author.name}` and `${committer.name}` when the git config `user.email` matches the author's or committer's email address.
 
-### `trueblame.delayBlame`
+### `alltheblame.delayBlame`
 > Type: `number`
 
 > Default value: `0`
 
 This setting adds a delay (in milliseconds) before the blame is displayed
 
-### `trueblame.parallelBlames`
+### `alltheblame.parallelBlames`
 > Type: `number`
 
 > Default value: `2`
 
 Limit how many git blame processes the extension can run in parallel. This can help with high CPU usage.
 
-### `trueblame.extendedHoverInformation`
+### `alltheblame.extendedHoverInformation`
 > Type: `string`
 
 > Default value: `"off"`
@@ -172,14 +172,14 @@ Availiable values:
 * `"inline"`
 * `"status"`
 
-### `trueblame.revsFile`
+### `alltheblame.revsFile`
 > Type: `string[]`
 
 > Default value: `[]`
 
 List of refs-file names to look for relative to the closest `.git`-folder. The first file in the list that is [accessible](https://nodejs.org/docs/latest-v22.x/api/fs.html#fspromisesaccesspath-mode) will be used with the [`-S` argument](https://git-scm.com/docs/git-blame#Documentation/git-blame.txt--Sltrevs-filegt) in `git blame`.
 
-### `trueblame.detectMoveOrCopyFromOtherFiles`
+### `alltheblame.detectMoveOrCopyFromOtherFiles`
 > Type: `number`
 
 > Default value: `0`
@@ -213,9 +213,9 @@ Availiable values:
 | `${time.c_ago}`               | No       | -         | -             | displays an estimation of how long ago the committer committed (e.g. `10 hours ago`, `20 days ago`, `4 months ago`) |
 
 ## Known issues
-### The `trueblame.gitShow` command does not work with _my shell_
+### The `alltheblame.gitShow` command does not work with _my shell_
 
-If your default terminal profile is set to `cmd.exe` `trueblame.gitShow` will not function correctly. Fix this by using a unix compatible shell.
+If your default terminal profile is set to `cmd.exe` `alltheblame.gitShow` will not function correctly. Fix this by using a unix compatible shell.
 
 ## Acknowledgements
 
