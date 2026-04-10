@@ -4,6 +4,9 @@ permissions:
     contents: read
 
 on:
+    push:
+        tags:
+            - "v*"
     workflow_dispatch:
 
 jobs:
@@ -16,6 +19,12 @@ jobs:
                   node-version: 24
             - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
             - run: pnpm install --frozen-lockfile
+            - name: Publish to VS Code Marketplace
+              uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # 2.0.0 release
+              id: publishToVSCMarketplace
+              with:
+                  pat: ${{ secrets.VSCE_PAT }}
+                  registryUrl: https://marketplace.visualstudio.com
             - name: Publish to Open VSX Registry
               uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # 2.0.0 release
               id: publishToOpenVSX
