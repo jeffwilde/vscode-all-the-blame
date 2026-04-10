@@ -43,14 +43,14 @@
 		"tsx": "4.21.0",
 		"typescript": "6.0.2"
 	},
-	"homepage": "https://github.com/jeffwilde/vscode-gitblaime/blob/main/README.md",
+	"homepage": "https://github.com/jeffwilde/vscode-all-the-blame/blob/main/README.md",
 	"bugs": {
-		"url": "https://github.com/jeffwilde/vscode-gitblaime/issues"
+		"url": "https://github.com/jeffwilde/vscode-all-the-blame/issues"
 	},
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/jeffwilde/vscode-gitblaime"
+		"url": "https://github.com/jeffwilde/vscode-all-the-blame"
 	},
 	"categories": [
 		"Other"
