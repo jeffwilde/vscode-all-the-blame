@@ -25,7 +25,7 @@ import { errorMessage, infoMessage } from "./message.js";
 import { PropertyStore } from "./PropertyStore.js";
 import {
 	normalizeCommitInfoTokens,
-	parseTokens,
+	renderTemplate,
 } from "./string-stuff/text-decorator.js";
 import {
 	type Document,
@@ -71,7 +71,7 @@ export class Extension {
 			return;
 		}
 
-		const message = parseTokens(
+		const message = renderTemplate(
 			PropertyStore.get("infoMessageFormat"),
 			normalizeCommitInfoTokens(lineAware.commit),
 		);
