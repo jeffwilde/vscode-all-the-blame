@@ -8,6 +8,6 @@
 			]
 		}
 	},
-	"updateContentCommand": "npm install && npm run build && npx @vscode/vsce package --no-dependencies -o all-the-blame.vsix",
+	"updateContentCommand": "pnpm install && pnpm run build && pnpm exec vsce package --no-dependencies -o all-the-blame.vsix",
 	"waitFor": "updateContentCommand"
 }

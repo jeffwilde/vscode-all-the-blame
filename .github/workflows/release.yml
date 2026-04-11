@@ -14,7 +14,8 @@ jobs:
             - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
               with:
                   node-version: 24
-            - run: npm ci --ignore-scripts
+            - uses: pnpm/action-setup@fe02b34f77f8bc703571e18e8e3e6d5e7ada5eda # v4.1.0
+            - run: pnpm install --frozen-lockfile
             - name: Publish to Open VSX Registry
               uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # 2.0.0 release
               id: publishToOpenVSX
