@@ -1,5 +1,6 @@
 import * as assert from "node:assert";
 import test, { suite } from "node:test";
+import { CoAuthorCache } from "../../src/git/coauthor-cache.js";
 import { isBotAuthor, parseCoAuthors } from "../../src/git/coauthor.js";
 
 suite("Bot Author Detection", (): void => {
@@ -97,5 +98,72 @@ suite("Co-Author Parsing", (): void => {
 		assert.strictEqual(coAuthors.length, 1);
 		assert.strictEqual(coAuthors[0].name, "nick-fields");
 		assert.strictEqual(coAuthors[0].mail, "<nick@flux.ai>");
+	});
+});
+
+suite("CoAuthorCache", (): void => {
+	function createMockMemento() {
+		const store: Record<string, unknown> = {};
+		return {
+			get<T>(key: string, defaultValue?: T): T {
+				return (store[key] as T) ?? (defaultValue as T);
+			},
+			async update(key: string, value: unknown): Promise<void> {
+				store[key] = value;
+			},
+			keys(): readonly string[] {
+				return Object.keys(store);
+			},
+		};
+	}
+
+	test("Returns undefined for unknown hash", (): void => {
+		const cache = CoAuthorCache.createInstance(createMockMemento());
+		assert.strictEqual(cache.has("abc123"), false);
+		assert.strictEqual(cache.get("abc123"), undefined);
+	});
+
+	test("Stores and retrieves co-author", (): void => {
+		const cache = CoAuthorCache.createInstance(createMockMemento());
+		cache.set("abc123", { name: "Alice", mail: "<alice@co.com>" });
+		assert.strictEqual(cache.has("abc123"), true);
+		assert.deepStrictEqual(cache.get("abc123"), {
+			name: "Alice",
+			mail: "<alice@co.com>",
+		});
+	});
+
+	test("Stores null for commits with no co-author", (): void => {
+		const cache = CoAuthorCache.createInstance(createMockMemento());
+		cache.setNone("def456");
+		assert.strictEqual(cache.has("def456"), true);
+		assert.strictEqual(cache.get("def456"), null);
+	});
+
+	test("Flushes to memento storage", async (): Promise<void> => {
+		const memento = createMockMemento();
+		const cache = CoAuthorCache.createInstance(memento);
+		cache.set("abc123", { name: "Alice", mail: "<alice@co.com>" });
+		await cache.flush();
+
+		const stored = memento.get<Record<string, unknown>>("coAuthorIndex", {});
+		assert.deepStrictEqual(stored["abc123"], {
+			name: "Alice",
+			mail: "<alice@co.com>",
+		});
+	});
+
+	test("Loads from existing memento data", (): void => {
+		const memento = createMockMemento();
+		memento.update("coAuthorIndex", {
+			existing: { name: "Bob", mail: "<bob@co.com>" },
+		});
+
+		const cache = CoAuthorCache.createInstance(memento);
+		assert.strictEqual(cache.has("existing"), true);
+		assert.deepStrictEqual(cache.get("existing"), {
+			name: "Bob",
+			mail: "<bob@co.com>",
+		});
 	});
 });
