@@ -3,7 +3,7 @@
 	"displayName": "All the Blame",
 	"description": "AI tooling aware git blame. See git blame information in the status bar or in-line, with automatic co-author resolution for bot-attributed commits.",
 	"version": "0.1.0",
-	"publisher": "jeffwilde",
+	"publisher": "robo-ai",
 	"private": true,
 	"type": "module",
 	"engines": {
