@@ -3,6 +3,12 @@
 	"image": "mcr.microsoft.com/devcontainers/javascript-node:22",
 	"customizations": {
 		"vscode": {
+			"settings": {
+				"gitblame.inlineMessageEnabled": true,
+				"gitblame.extendedHoverInformation": "inline-status",
+				"alltheblame.inlineMessageEnabled": true,
+				"alltheblame.extendedHoverInformation": "inline-status"
+			},
 			"extensions": [
 				"${containerWorkspaceFolder}/all-the-blame.vsix"
 			]
