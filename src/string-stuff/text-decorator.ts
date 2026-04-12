@@ -15,9 +15,7 @@ function authorView(
 ): Record<string, unknown> {
 	return {
 		name:
-			author.isCurrentUser && currentUserAlias
-				? currentUserAlias
-				: author.name,
+			author.isCurrentUser && currentUserAlias ? currentUserAlias : author.name,
 		mail: author.mail,
 		timestamp: author.timestamp,
 		tz: author.tz,
@@ -63,7 +61,9 @@ function sanitize(output: string): string {
 }
 
 export function renderTemplate(template: string, view: TemplateView): string {
-	return sanitize(Mustache.render(template, view, undefined, { escape: (v: string) => v }));
+	return sanitize(
+		Mustache.render(template, view, undefined, { escape: (v: string) => v }),
+	);
 }
 
 export function toStatusBarTextView(commit: Commit): string {

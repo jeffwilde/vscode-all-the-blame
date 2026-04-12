@@ -9,9 +9,9 @@ import test, {
 } from "node:test";
 import { between } from "../../src/ago.js";
 import {
-	type TemplateView,
 	normalizeCommitInfoTokens,
 	renderTemplate,
+	type TemplateView,
 	toInlineTextView,
 	toStatusBarTextView,
 } from "../../src/string-stuff/text-decorator.js";
@@ -152,10 +152,7 @@ suite("Mustache Template Rendering", async (): Promise<void> => {
 
 	test("Token in the middle of string", (): void => {
 		assert.strictEqual(
-			renderTemplate(
-				"Simple {{example.token}} in a longer text",
-				view,
-			),
+			renderTemplate("Simple {{example.token}} in a longer text", view),
 			"Simple example-token in a longer text",
 		);
 	});
@@ -201,13 +198,8 @@ suite("Text Decorator with CommitInfoToken", async (): Promise<void> => {
 
 	function check(token: string, expect: string) {
 		test(`Render "{{${token}}}"`, (): void => {
-			const view = normalizeCommitInfoTokens(
-				getExampleCommit().commit,
-			);
-			assert.strictEqual(
-				renderTemplate(`{{${token}}}`, view),
-				expect,
-			);
+			const view = normalizeCommitInfoTokens(getExampleCommit().commit);
+			assert.strictEqual(renderTemplate(`{{${token}}}`, view), expect);
 		});
 	}
 
@@ -308,10 +300,7 @@ suite("Text Sanitizing", async (): Promise<void> => {
 	const view = normalizeCommitInfoTokens(exampleCommit.commit);
 	test("removes right-to-left override characters from text", () => {
 		assert.strictEqual(
-			renderTemplate(
-				"Blame {{author.name}} ({{commit.summary}})",
-				view,
-			),
+			renderTemplate("Blame {{author.name}} ({{commit.summary}})", view),
 			"Blame Vladimir Davydov (list_lru: introduce per-memcg lists)",
 		);
 	});
@@ -331,17 +320,11 @@ suite("Current User Replace", async (): Promise<void> => {
 		);
 
 		assert.strictEqual(
-			renderTemplate(
-				"Blame {{author.name}} ({{commit.summary}})",
-				view,
-			),
+			renderTemplate("Blame {{author.name}} ({{commit.summary}})", view),
 			"Blame CURRENT_USER (list_lru: introduce per-memcg lists)",
 		);
 		assert.strictEqual(
-			renderTemplate(
-				"Blame {{committer.name}} ({{commit.summary}})",
-				view,
-			),
+			renderTemplate("Blame {{committer.name}} ({{commit.summary}})", view),
 			"Blame Linus Torvalds (list_lru: introduce per-memcg lists)",
 		);
 	});

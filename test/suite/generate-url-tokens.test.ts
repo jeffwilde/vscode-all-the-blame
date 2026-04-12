@@ -9,8 +9,8 @@ import test, {
 import { setupCachedGit } from "../../src/git/command/CachedGit.js";
 import { Logger } from "../../src/logger.js";
 import {
-	type TemplateView,
 	renderTemplate,
+	type TemplateView,
 } from "../../src/string-stuff/text-decorator.js";
 import { getExampleCommit } from "../getExampleCommit.js";
 import { setupPropertyStore } from "../setupPropertyStore.js";
@@ -100,10 +100,7 @@ suite("Generate URL Tokens", () => {
 		);
 		assert.strictEqual(nested(tokens, "gitorigin.path.0"), "Sertion");
 		assert.strictEqual(nested(tokens, "gitorigin.path.1"), "vscode-gitblame");
-		assert.strictEqual(
-			tokens.hash,
-			"60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce",
-		);
+		assert.strictEqual(tokens.hash, "60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce");
 		assert.strictEqual(nested(tokens, "project.name"), "vscode-gitblame");
 		assert.strictEqual(
 			nested(tokens, "project.remote"),
@@ -138,10 +135,7 @@ suite("Generate URL Tokens", () => {
 		);
 		assert.strictEqual(nested(tokens, "gitorigin.path.0"), "Sertion");
 		assert.strictEqual(nested(tokens, "gitorigin.path.1"), "vscode-gitblame");
-		assert.strictEqual(
-			tokens.hash,
-			"60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce",
-		);
+		assert.strictEqual(tokens.hash, "60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce");
 		assert.strictEqual(nested(tokens, "project.name"), "vscode-gitblame");
 		assert.strictEqual(
 			nested(tokens, "project.remote"),
@@ -177,10 +171,7 @@ suite("Generate URL Tokens", () => {
 		);
 		assert.strictEqual(nested(tokens, "gitorigin.path.0"), "Sertion");
 		assert.strictEqual(nested(tokens, "gitorigin.path.1"), "vscode-gitblame");
-		assert.strictEqual(
-			tokens.hash,
-			"60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce",
-		);
+		assert.strictEqual(tokens.hash, "60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce");
 		assert.strictEqual(nested(tokens, "project.name"), "vscode-gitblame");
 		assert.strictEqual(
 			nested(tokens, "project.remote"),
@@ -221,10 +212,7 @@ suite("Generate URL Tokens", () => {
 		);
 		assert.strictEqual(nested(tokens, "gitorigin.path.0"), "project_x");
 		assert.strictEqual(nested(tokens, "gitorigin.path.1"), "test-repository");
-		assert.strictEqual(
-			tokens.hash,
-			"60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce",
-		);
+		assert.strictEqual(tokens.hash, "60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce");
 		assert.strictEqual(nested(tokens, "project.name"), "test-repository");
 		assert.strictEqual(
 			nested(tokens, "project.remote"),

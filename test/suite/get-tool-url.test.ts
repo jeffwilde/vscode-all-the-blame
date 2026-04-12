@@ -56,7 +56,9 @@ suite("Get tool URL: gitRemotePathView", (): void => {
 		assert.strictEqual(view["2"], "something");
 	});
 	test("http:// with port", (): void => {
-		const view = gitRemotePathView("http://example.com:8080/path/to/something/");
+		const view = gitRemotePathView(
+			"http://example.com:8080/path/to/something/",
+		);
 
 		assert.strictEqual(view.full, "/path/to/something/");
 		assert.strictEqual(view["0"], "path");
@@ -64,7 +66,9 @@ suite("Get tool URL: gitRemotePathView", (): void => {
 		assert.strictEqual(view["2"], "something");
 	});
 	test("https:// with port", (): void => {
-		const view = gitRemotePathView("https://example.com:8080/path/to/something/");
+		const view = gitRemotePathView(
+			"https://example.com:8080/path/to/something/",
+		);
 
 		assert.strictEqual(view.full, "/path/to/something/");
 		assert.strictEqual(view["0"], "path");
@@ -93,9 +97,6 @@ suite("Get tool URL: gitRemotePathView", (): void => {
 	test("Out of bounds input", (): void => {
 		const view = gitRemotePathView("https://part/");
 
-		assert.strictEqual(
-			view[Number.MAX_SAFE_INTEGER.toString()],
-			undefined,
-		);
+		assert.strictEqual(view[Number.MAX_SAFE_INTEGER.toString()], undefined);
 	});
 });

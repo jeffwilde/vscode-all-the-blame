@@ -6,8 +6,8 @@ import { PropertyStore } from "../PropertyStore.js";
 import { isUrl } from "../string-stuff/is-url.js";
 import { split } from "../string-stuff/split.js";
 import {
-	type TemplateView,
 	renderTemplate,
+	type TemplateView,
 } from "../string-stuff/text-decorator.js";
 import { getvscode } from "../vscode-quarantine.js";
 import { getGeneralGitInfo } from "./command/getGeneralGitInfo.js";
@@ -32,9 +32,7 @@ function gitOriginHostnameView(url: URL): Record<string, string> {
 /**
  * @internal
  */
-export function gitRemotePathView(
-	remote: string,
-): Record<string, string> {
+export function gitRemotePathView(remote: string): Record<string, string> {
 	let pathname: string;
 
 	if (/^[a-z0-9-]+?@/.test(remote)) {
