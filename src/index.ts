@@ -5,7 +5,17 @@ import { setupCachedGit } from "./git/command/CachedGit.js";
 import { PropertyStore } from "./PropertyStore.js";
 import { getvscode } from "./vscode-quarantine.js";
 
-export async function activate(context: ExtensionContext): Promise<void> {
+/**
+ * @internal Test-only API returned from activate() for integration tests.
+ */
+export type ExtensionApi = {
+	getStatusBarText(): string;
+	updateView(): Promise<void>;
+};
+
+export async function activate(
+	context: ExtensionContext,
+): Promise<ExtensionApi> {
 	await PropertyStore.createInstance();
 	setvscodeForActiveTextEditor();
 	await setupCachedGit();
@@ -45,4 +55,11 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	]).then((disposables) =>
 		context.subscriptions.push(...disposables.filter((e) => !!e)),
 	);
+
+	return {
+		getStatusBarText: () => app?.getStatusBarText() ?? "",
+		updateView: async () => {
+			await app?.updateView();
+		},
+	};
 }

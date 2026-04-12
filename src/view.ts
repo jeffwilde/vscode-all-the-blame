@@ -108,6 +108,13 @@ export class StatusBarView {
 		this.configChange.dispose();
 	}
 
+	/**
+	 * @internal Test-only. Returns the current status bar item text.
+	 */
+	public getStatusBarText(): string {
+		return this.statusBarText;
+	}
+
 	private getCommand(): string {
 		return {
 			"Open tool URL": "gitblame.online",

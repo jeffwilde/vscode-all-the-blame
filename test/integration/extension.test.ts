@@ -9,6 +9,11 @@ const pkg = JSON.parse(
 const extensionId = `${pkg.publisher}.${pkg.name}`;
 const settingsPrefix = pkg.name === "all-the-blame" ? "alltheblame" : "gitblame";
 
+type ExtensionApi = {
+	getStatusBarText(): string;
+	updateView(): Promise<void>;
+};
+
 suite("Extension Integration", () => {
 	test("extension is registered", () => {
 		const ext = vscode.extensions.getExtension(extensionId);
@@ -47,28 +52,52 @@ suite("Extension Integration", () => {
 		}
 	});
 
-	test("opening a tracked file does not throw", async function () {
+	test("status bar renders blame text for a tracked line", async function () {
 		this.timeout(30_000);
 		const ext = vscode.extensions.getExtension(extensionId);
-		await ext?.activate();
-
-		const uri = vscode.Uri.file(
-			path.resolve(__dirname, "../../src/extension.ts"),
+		assert.ok(ext);
+		const api = (await ext.activate()) as ExtensionApi;
+		assert.ok(
+			typeof api?.getStatusBarText === "function",
+			"activate() should return an API with getStatusBarText",
 		);
-		const doc = await vscode.workspace.openTextDocument(uri);
-		const editor = await vscode.window.showTextDocument(doc);
 
+		// src/extension.ts is a real tracked file with plenty of git history.
+		const target = path.resolve(__dirname, "../../src/extension.ts");
+		const doc = await vscode.workspace.openTextDocument(
+			vscode.Uri.file(target),
+		);
+		const editor = await vscode.window.showTextDocument(doc);
 		editor.selection = new vscode.Selection(5, 0, 5, 0);
 
-		// Wait for async blame resolution + status bar render.
-		await new Promise((r) => setTimeout(r, 3_000));
+		await api.updateView();
 
-		// The extension should still be active — if rendering threw
-		// synchronously, activation would be torn down.
-		assert.strictEqual(
-			ext?.isActive,
-			true,
-			"Extension should still be active after opening a file",
+		// Poll for the status bar text to populate — blame is async (git
+		// subprocess + queueing), so it isn't ready immediately.
+		const deadline = Date.now() + 15_000;
+		let text = api.getStatusBarText();
+		while (Date.now() < deadline) {
+			text = api.getStatusBarText();
+			if (text && text !== "$(git-commit) " && !text.includes("extensions-refresh")) {
+				break;
+			}
+			await new Promise((r) => setTimeout(r, 250));
+		}
+
+		assert.ok(
+			text.length > 0,
+			`Status bar text should not be empty. Got: "${text}"`,
+		);
+		assert.ok(
+			!text.includes("extensions-refresh"),
+			`Status bar should have finished blaming (not the activity spinner). Got: "${text}"`,
+		);
+		// Expect either "Blame <name> (<time ago>)" or "Not Committed Yet".
+		// At minimum it should contain something other than just the icon.
+		assert.match(
+			text,
+			/Blame |Not Committed/,
+			`Status bar should contain rendered blame text. Got: "${text}"`,
 		);
 	});
 });

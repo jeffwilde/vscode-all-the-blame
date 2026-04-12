@@ -191,6 +191,13 @@ export class Extension {
 		this.gitWatcher.dispose();
 	}
 
+	/**
+	 * @internal Test-only. Returns the current status bar item text.
+	 */
+	public getStatusBarText(): string {
+		return this.view.getStatusBarText();
+	}
+
 	private setupListeners(): Disposable {
 		const changeTextEditorSelection = (textEditor: TextEditor): void => {
 			const { scheme } = textEditor.document.uri;
