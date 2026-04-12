@@ -1,0 +1,13 @@
+{
+	"name": "All the Blame - Extension Preview",
+	"image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"${containerWorkspaceFolder}/all-the-blame.vsix"
+			]
+		}
+	},
+	"updateContentCommand": "pnpm install && pnpm run build && pnpm dlx @vscode/vsce package --no-dependencies -o all-the-blame.vsix",
+	"waitFor": "updateContentCommand"
+}

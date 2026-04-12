@@ -19,9 +19,10 @@ jobs:
             - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
               with:
                   node-version: 24
+            - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
 
-            - name: Install Node Dependencies
-              run: npm ci --ignore-scripts
+            - name: Install Dependencies
+              run: pnpm install --frozen-lockfile
 
             - name: Setup Biome CLI
               uses: biomejs/setup-biome@4c91541eaada48f67d7dbd7833600ce162b68f51 # v2.7.1
@@ -30,12 +31,24 @@ jobs:
               run: biome ci ./src/
 
             - name: Run tests
-              run: npm test
+              run: pnpm test
 
             - name: Generate coverage
-              run: npm run test-coverage
+              run: pnpm run test-coverage
 
             - name: SonarQube Scan
+              if: env.SONAR_TOKEN != ''
               uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
               env:
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+            - name: Package VSIX
+              if: github.event_name == 'pull_request'
+              run: pnpm dlx @vscode/vsce package --no-dependencies -o all-the-blame.vsix
+
+            - name: Upload VSIX artifact
+              if: github.event_name == 'pull_request'
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+              with:
+                  name: all-the-blame-vsix
+                  path: all-the-blame.vsix
