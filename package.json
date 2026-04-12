@@ -19,7 +19,7 @@
 		"vscode:prepublish": "pnpm run build",
 		"build": "tsx esbuild.mts",
 		"build-with-sourcemaps": "SOURCEMAPS=1 tsx esbuild.mts",
-		"package": "pnpm exec @vscode/vsce package",
+		"package": "pnpm dlx @vscode/vsce package",
 		"lint": "biome lint ./src ./test --fix",
 		"check": "biome check ./src ./test --fix",
 		"update-test-snapshots": "tsx --test --experimental-test-module-mocks --test-update-snapshots \"./**/*.test.ts\"",
