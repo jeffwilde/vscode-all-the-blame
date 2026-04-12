@@ -35,6 +35,7 @@ export class StatusBarView {
 
 	private lastText?: string;
 	private lastToolTip?: MarkdownString;
+	private lastInlineDecorationText?: string;
 	private readonly toolTipMarkdownCache = new WeakMap<Commit, MarkdownString>();
 
 	constructor() {
@@ -241,6 +242,8 @@ export class StatusBarView {
 			Number.MAX_SAFE_INTEGER,
 		);
 		const isString = typeof text === "string";
+		const contentText = isString ? text : toInlineTextView(text);
+		this.lastInlineDecorationText = contentText;
 
 		editor.setDecorations?.(this.decorationType, [
 			{
@@ -249,7 +252,7 @@ export class StatusBarView {
 					: this.generateFancyTooltip(text, "inline"),
 				renderOptions: {
 					after: {
-						contentText: isString ? text : toInlineTextView(text),
+						contentText,
 						margin: `0 0 0 ${PropertyStore.get("inlineMessageMargin")}rem`,
 						color: new ThemeColor("gitblame.inlineMessage"),
 					},
@@ -262,6 +265,15 @@ export class StatusBarView {
 	private removeLineDecoration(): void {
 		const editor = getActiveTextEditor();
 		editor?.setDecorations?.(this.decorationType, []);
+		this.lastInlineDecorationText = undefined;
+	}
+
+	/**
+	 * @internal Test-only. Returns the most recent inline decoration text
+	 * set on the current editor, or undefined if none.
+	 */
+	public getInlineDecorationText(): string | undefined {
+		return this.lastInlineDecorationText;
 	}
 
 	public preUpdate(

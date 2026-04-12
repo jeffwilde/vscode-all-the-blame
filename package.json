@@ -28,7 +28,7 @@
 		"test-coverage": "tsx --test --experimental-test-module-mocks --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=./lcov.info  \"./test/suite/**/*.test.ts\"",
 		"test": "tsx --test --experimental-test-module-mocks \"./test/suite/**/*.test.ts\"",
 		"compile-integration-tests": "tsc -p test/integration/tsconfig.json && node -e \"require('fs').mkdirSync('out-test',{recursive:true});require('fs').writeFileSync('out-test/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\"",
-		"pretest-integration": "pnpm run build && pnpm run compile-integration-tests",
+		"pretest-integration": "pnpm run build && pnpm run compile-integration-tests && node test/integration/setup-fixture.mjs",
 		"test-integration": "vscode-test"
 	},
 	"devDependencies": {

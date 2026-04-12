@@ -198,6 +198,13 @@ export class Extension {
 		return this.view.getStatusBarText();
 	}
 
+	/**
+	 * @internal Test-only. Returns the most recent inline decoration text.
+	 */
+	public getInlineDecorationText(): string | undefined {
+		return this.view.getInlineDecorationText();
+	}
+
 	private setupListeners(): Disposable {
 		const changeTextEditorSelection = (textEditor: TextEditor): void => {
 			const { scheme } = textEditor.document.uri;

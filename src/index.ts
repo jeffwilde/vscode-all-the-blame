@@ -10,6 +10,7 @@ import { getvscode } from "./vscode-quarantine.js";
  */
 export type ExtensionApi = {
 	getStatusBarText(): string;
+	getInlineDecorationText(): string | undefined;
 	updateView(): Promise<void>;
 };
 
@@ -58,6 +59,7 @@ export async function activate(
 
 	return {
 		getStatusBarText: () => app?.getStatusBarText() ?? "",
+		getInlineDecorationText: () => app?.getInlineDecorationText(),
 		updateView: async () => {
 			await app?.updateView();
 		},
