@@ -67,7 +67,7 @@ commit({
 // Commit 3 — Diana adds an unrelated file (used for file-switch assertions).
 writeFileSync(
 	join(FIXTURE, "other.ts"),
-	['export const count = 42;', ""].join("\n"),
+	["export const count = 42;", ""].join("\n"),
 );
 commit({
 	author: { name: "Diana Edwards", email: "diana@example.com" },
@@ -76,8 +76,6 @@ commit({
 });
 
 // Configure a remote so commitUrl rendering has something to point at.
-sh(
-	"git remote add origin https://github.com/test-user/fixture-repo.git",
-);
+sh("git remote add origin https://github.com/test-user/fixture-repo.git");
 
 console.log(`Fixture repo ready at ${FIXTURE}`);

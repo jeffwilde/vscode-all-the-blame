@@ -1,7 +1,7 @@
 import * as assert from "node:assert";
 import test, { suite } from "node:test";
-import { CoAuthorCache } from "../../src/git/coauthor-cache.js";
 import { isBotAuthor, parseCoAuthors } from "../../src/git/coauthor.js";
+import { CoAuthorCache } from "../../src/git/coauthor-cache.js";
 
 suite("Bot Author Detection", (): void => {
 	test("Detects GitHub bot suffix", (): void => {
@@ -55,8 +55,7 @@ suite("Co-Author Parsing", (): void => {
 	});
 
 	test("Handles extra whitespace", (): void => {
-		const message =
-			"msg\n\nCo-authored-by:   Jane Doe   <jane@example.com>";
+		const message = "msg\n\nCo-authored-by:   Jane Doe   <jane@example.com>";
 
 		const coAuthors = parseCoAuthors(message);
 		assert.strictEqual(coAuthors.length, 1);

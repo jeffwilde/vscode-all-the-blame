@@ -1,7 +1,7 @@
+import { Logger } from "../logger.js";
 import type { Commit } from "./Commit.js";
 import { CoAuthorCache } from "./coauthor-cache.js";
 import { git } from "./command/CachedGit.js";
-import { Logger } from "../logger.js";
 
 const BOT_SUFFIX = /\[bot\]$/i;
 const COMMIT_DELIMITER = "COMMIT_DELIMITER ";
@@ -113,7 +113,9 @@ export class CoAuthorResolver {
 
 		try {
 			const allHashes = [...this.pending.keys()];
-			const chunks: Promise<Map<string, { name: string; mail: string } | null>>[] = [];
+			const chunks: Promise<
+				Map<string, { name: string; mail: string } | null>
+			>[] = [];
 
 			for (let i = 0; i < allHashes.length; i += MAX_HASHES_PER_CALL) {
 				chunks.push(

@@ -35,7 +35,10 @@ export async function activate(
 		}),
 		import("./logger.js").then((i) => i.Logger.createInstance()),
 		commands.then((e) =>
-			e?.registerCommand("alltheblame.quickInfo", () => void app?.showMessage()),
+			e?.registerCommand(
+				"alltheblame.quickInfo",
+				() => void app?.showMessage(),
+			),
 		),
 		commands.then((e) =>
 			e?.registerCommand("alltheblame.online", () => void app?.blameLink()),
