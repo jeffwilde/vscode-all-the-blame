@@ -30,8 +30,11 @@ jobs:
             - name: Code quality
               run: biome ci ./src/
 
-            - name: Run tests
+            - name: Run unit tests
               run: pnpm test
+
+            - name: Run integration tests
+              run: xvfb-run -a pnpm test-integration
 
             - name: Generate coverage
               run: pnpm run test-coverage
