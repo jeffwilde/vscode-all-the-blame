@@ -13,7 +13,9 @@
 	"main": "./out/index.js",
 	"packageManager": "pnpm@10.33.0",
 	"pnpm": {
-		"onlyBuiltDependencies": ["esbuild"]
+		"onlyBuiltDependencies": [
+			"esbuild"
+		]
 	},
 	"scripts": {
 		"vscode:prepublish": "pnpm run build",
@@ -22,15 +24,22 @@
 		"package": "pnpm dlx @vscode/vsce package",
 		"lint": "biome lint ./src ./test --fix",
 		"check": "biome check ./src ./test --fix",
-		"update-test-snapshots": "tsx --test --experimental-test-module-mocks --test-update-snapshots \"./**/*.test.ts\"",
-		"test-coverage": "tsx --test --experimental-test-module-mocks --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=./lcov.info  \"./**/*.test.ts\"",
-		"test": "tsx --test --experimental-test-module-mocks \"./**/*.test.ts\""
+		"update-test-snapshots": "tsx --test --experimental-test-module-mocks --test-update-snapshots \"./test/suite/**/*.test.ts\"",
+		"test-coverage": "tsx --test --experimental-test-module-mocks --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=./lcov.info  \"./test/suite/**/*.test.ts\"",
+		"test": "tsx --test --experimental-test-module-mocks \"./test/suite/**/*.test.ts\"",
+		"compile-integration-tests": "tsc -p test/integration/tsconfig.json && node -e \"require('fs').mkdirSync('out-test',{recursive:true});require('fs').writeFileSync('out-test/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\"",
+		"pretest-integration": "pnpm run build && pnpm run compile-integration-tests",
+		"test-integration": "vscode-test"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.10",
+		"@types/mocha": "^10.0.10",
 		"@types/node": "22.9.0",
 		"@types/vscode": "1.100.0",
+		"@vscode/test-cli": "^0.0.12",
+		"@vscode/test-electron": "^2.5.2",
 		"esbuild": "0.27.4",
+		"mocha": "^11.7.5",
 		"tsx": "4.21.0",
 		"typescript": "6.0.2"
 	},
