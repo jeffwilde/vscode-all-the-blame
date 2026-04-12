@@ -7,13 +7,16 @@
 				"gitblame.inlineMessageEnabled": true,
 				"gitblame.extendedHoverInformation": "inline-status",
 				"alltheblame.inlineMessageEnabled": true,
-				"alltheblame.extendedHoverInformation": "inline-status"
+				"alltheblame.extendedHoverInformation": "inline-status",
+				"workbench.startupEditor": "none",
+				"files.autoSave": "off"
 			},
 			"extensions": [
 				"${containerWorkspaceFolder}/all-the-blame.vsix"
 			]
 		}
 	},
-	"updateContentCommand": "pnpm install && pnpm run build && pnpm dlx @vscode/vsce package --no-dependencies -o all-the-blame.vsix",
+	"updateContentCommand": "rm -rf out && pnpm install && pnpm run build && pnpm dlx @vscode/vsce package --no-dependencies -o all-the-blame.vsix",
+	"postAttachCommand": "echo '--- All the Blame devcontainer ready. Open src/extension.ts and check the \"All the Blame\" output channel. ---'",
 	"waitFor": "updateContentCommand"
 }
