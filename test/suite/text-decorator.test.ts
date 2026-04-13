@@ -9,9 +9,9 @@ import test, {
 } from "node:test";
 import { between } from "../../src/ago.js";
 import {
-	type InfoTokens,
 	normalizeCommitInfoTokens,
-	parseTokens,
+	renderTemplate,
+	type TemplateView,
 	toInlineTextView,
 	toStatusBarTextView,
 } from "../../src/string-stuff/text-decorator.js";
@@ -95,170 +95,93 @@ suite("Date Calculations", async (): Promise<void> => {
 	});
 });
 
-suite("Token Parser", async (): Promise<void> => {
+suite("Mustache Template Rendering", async (): Promise<void> => {
 	await setupPropertyStore();
-	const normalizedInfo: InfoTokens = {
-		"example.token": (): string => "example-token",
-		value: (value?: string): string => {
-			if (value) {
-				return `${value}-example`;
-			}
-			return "-example";
-		},
-		"mixed.token": (): string => "mIxeD-ToKeN",
+	const view: TemplateView = {
+		example: { token: "example-token" },
+		mixed: { token: "mIxeD-ToKeN" },
+		name: "World",
+		upper:
+			() =>
+			(text: string, render: (text: string) => string): string =>
+				render(text).toUpperCase(),
+		lower:
+			() =>
+			(text: string, render: (text: string) => string): string =>
+				render(text).toLowerCase(),
 	};
 
 	test("No token", (): void => {
-		assert.strictEqual(parseTokens("No token", normalizedInfo), "No token");
-	});
-
-	test("Invalid token", (): void => {
-		assert.strictEqual(
-			parseTokens("Invalid ${token}", normalizedInfo),
-			"Invalid token",
-		);
+		assert.strictEqual(renderTemplate("No token", view), "No token");
 	});
 
 	test("Simple replace", (): void => {
 		assert.strictEqual(
-			parseTokens("Simple ${example.token}", normalizedInfo),
+			renderTemplate("Simple {{example.token}}", view),
 			"Simple example-token",
 		);
 	});
 
 	test("Simple replace at the start of string", (): void => {
 		assert.strictEqual(
-			parseTokens("${example.token} simple", normalizedInfo),
+			renderTemplate("{{example.token}} simple", view),
 			"example-token simple",
 		);
 	});
 
 	test("Simple replace only token", (): void => {
 		assert.strictEqual(
-			parseTokens("${example.token}", normalizedInfo),
+			renderTemplate("{{example.token}}", view),
 			"example-token",
 		);
 	});
 
-	test("Value replace", (): void => {
+	test("Uppercase lambda", (): void => {
 		assert.strictEqual(
-			parseTokens("Value ${value,some-value}", normalizedInfo),
-			"Value some-value-example",
-		);
-	});
-
-	test("Function without parameter", (): void => {
-		assert.strictEqual(
-			parseTokens("Value ${value}", normalizedInfo),
-			"Value -example",
-		);
-	});
-
-	test("Modifier replace", (): void => {
-		assert.strictEqual(
-			parseTokens("Value ${mixed.token|u}", normalizedInfo),
+			renderTemplate("Value {{#upper}}{{mixed.token}}{{/upper}}", view),
 			"Value MIXED-TOKEN",
 		);
+	});
+
+	test("Lowercase lambda", (): void => {
 		assert.strictEqual(
-			parseTokens("Value ${mixed.token|l}", normalizedInfo),
+			renderTemplate("Value {{#lower}}{{mixed.token}}{{/lower}}", view),
 			"Value mixed-token",
-		);
-	});
-
-	test("Modifier replace with value", (): void => {
-		test("Modifier replace", (): void => {
-			assert.strictEqual(
-				parseTokens("Value ${value,mIxEd-ToKeN|u}", normalizedInfo),
-				"Value MIXED-TOKEN-EXAMPLE",
-			);
-			assert.strictEqual(
-				parseTokens("Value ${value,mIxEd-ToKeN|l}", normalizedInfo),
-				"Value mixed-token-example",
-			);
-		});
-	});
-
-	test("Invalid modifier", (): void => {
-		assert.strictEqual(
-			parseTokens("Value ${example.token|invalidModifier}", normalizedInfo),
-			"Value example-token|invalidModifier",
-		);
-		assert.strictEqual(
-			parseTokens("Value ${example.token|invalidModifier}", normalizedInfo),
-			"Value example-token|invalidModifier",
-		);
-		assert.strictEqual(
-			parseTokens("Value ${example.token|q}", normalizedInfo),
-			"Value example-token|q",
-		);
-	});
-
-	test("Modifier without token", (): void => {
-		assert.strictEqual(
-			parseTokens("Value ${|mod}", normalizedInfo),
-			"Value |mod",
 		);
 	});
 
 	test("Token in the middle of string", (): void => {
 		assert.strictEqual(
-			parseTokens("Simple ${example.token} in a longer text", normalizedInfo),
+			renderTemplate("Simple {{example.token}} in a longer text", view),
 			"Simple example-token in a longer text",
 		);
 	});
 
 	test("Multiple tokens", (): void => {
 		assert.strictEqual(
-			parseTokens(
-				"Multiple ${example.token} in a ${length,longer} text",
-				normalizedInfo,
-			),
-			"Multiple example-token in a length text",
+			renderTemplate("Hello {{name}}, {{example.token}}", view),
+			"Hello World, example-token",
 		);
 	});
 
-	test("Dangling token", (): void => {
+	test("Conditional section (truthy)", (): void => {
 		assert.strictEqual(
-			parseTokens("This token ${is.not.closed", normalizedInfo),
-			"This token ${is.not.closed",
-		);
-		assert.strictEqual(
-			parseTokens("This token ${is.not.closed with spaces", normalizedInfo),
-			"This token ${is.not.closed with spaces",
-		);
-		assert.strictEqual(
-			parseTokens("This token ${is.not.closed,with_params", normalizedInfo),
-			"This token ${is.not.closed,with_params",
-		);
-		assert.strictEqual(
-			parseTokens("This token ${is.not.closed|with_modifier", normalizedInfo),
-			"This token ${is.not.closed|with_modifier",
-		);
-		assert.strictEqual(
-			parseTokens(
-				"This token ${is.not.closed,with_params|and_modifier",
-				normalizedInfo,
-			),
-			"This token ${is.not.closed,with_params|and_modifier",
+			renderTemplate("{{#name}}Hi {{name}}{{/name}}", view),
+			"Hi World",
 		);
 	});
 
-	test("Support token symbols individually", () => {
+	test("Conditional section (falsy)", (): void => {
 		assert.strictEqual(
-			parseTokens("This dollar sign ($) is still around", {}),
-			"This dollar sign ($) is still around",
+			renderTemplate("{{#missing}}nope{{/missing}}fallback", view),
+			"fallback",
 		);
+	});
+
+	test("Inverted section", (): void => {
 		assert.strictEqual(
-			parseTokens("This bracket ({) is still around", {}),
-			"This bracket ({) is still around",
-		);
-		assert.strictEqual(
-			parseTokens("This bracket (}) is still around", {}),
-			"This bracket (}) is still around",
-		);
-		assert.strictEqual(
-			parseTokens("$ { } is still around", {}),
-			"$ { } is still around",
+			renderTemplate("{{^missing}}no value{{/missing}}", view),
+			"no value",
 		);
 	});
 });
@@ -274,21 +197,14 @@ suite("Text Decorator with CommitInfoToken", async (): Promise<void> => {
 	await setupPropertyStore();
 
 	function check(token: string, expect: string) {
-		test(`Parse "\${${token}}"`, (): void => {
-			const normalizedCommitInfoTokens = normalizeCommitInfoTokens(
-				getExampleCommit().commit,
-			);
-			assert.strictEqual(
-				parseTokens(`\${${token}}`, normalizedCommitInfoTokens ?? {}),
-				expect,
-			);
+		test(`Render "{{${token}}}"`, (): void => {
+			const view = normalizeCommitInfoTokens(getExampleCommit().commit);
+			assert.strictEqual(renderTemplate(`{{${token}}}`, view), expect);
 		});
 	}
 
 	check("author.mail", "<vdavydov.dev@gmail.com>");
 	check("author.name", "Vladimir Davydov");
-	check("author.name|u", "VLADIMIR DAVYDOV");
-	check("author.name|l", "vladimir davydov");
 	check("author.tz", "-0800");
 	check("author.date", "2015-02-12");
 
@@ -304,13 +220,29 @@ suite("Text Decorator with CommitInfoToken", async (): Promise<void> => {
 	check("time.ago", "6 years ago");
 	check("time.c_ago", "6 years ago");
 
-	check("commit.summary,0", "");
-	check("commit.summary,5", "list_");
-	check("commit.summary,5|u", "LIST_");
-	check("commit.hash_short,0", "");
-	check("commit.hash_short,2", "60");
-	check("commit.hash_short,39", "60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65c");
-	check("commit.hash_short,100|u", "60D3FD32A7A9DA4C8C93A9F89CFDA22A0B4C65CE");
+	test("Uppercase via lambda", (): void => {
+		const view = normalizeCommitInfoTokens(getExampleCommit().commit);
+		assert.strictEqual(
+			renderTemplate("{{#upper}}{{author.name}}{{/upper}}", view),
+			"VLADIMIR DAVYDOV",
+		);
+	});
+
+	test("Lowercase via lambda", (): void => {
+		const view = normalizeCommitInfoTokens(getExampleCommit().commit);
+		assert.strictEqual(
+			renderTemplate("{{#lower}}{{author.name}}{{/lower}}", view),
+			"vladimir davydov",
+		);
+	});
+
+	test("Multiple tokens in one template", () => {
+		const view = normalizeCommitInfoTokens(getExampleCommit().commit);
+		assert.strictEqual(
+			renderTemplate("{{commit.summary}} {{commit.hash_short}}", view),
+			"list_lru: introduce per-memcg lists 60d3fd3",
+		);
+	});
 });
 
 suite("Can generate output based on settings", async (): Promise<void> => {
@@ -343,72 +275,17 @@ suite("Can generate output based on settings", async (): Promise<void> => {
 	});
 
 	test("Custom statusBarMessageFormat", (): void => {
-		prop.setOverride("statusBarMessageFormat", "Date: ${author.date}");
+		prop.setOverride("statusBarMessageFormat", "Date: {{author.date}}");
 		assert.strictEqual(
 			toStatusBarTextView(getExampleCommit().commit),
 			"Date: 2015-02-12",
 		);
 	});
 	test("Custom inlineMessageFormat", (): void => {
-		prop.setOverride("inlineMessageFormat", "Date: ${author.date}");
+		prop.setOverride("inlineMessageFormat", "Date: {{author.date}}");
 		assert.strictEqual(
 			toInlineTextView(getExampleCommit().commit),
 			"Date: 2015-02-12",
-		);
-	});
-});
-
-suite("issue #119 regressions", async (): Promise<void> => {
-	await setupPropertyStore();
-	const normalizedCommitInfoTokens = normalizeCommitInfoTokens(
-		getExampleCommit().commit,
-	);
-	before(() => {
-		mock.timers.enable({
-			apis: ["Date"],
-			now: 1_621_014_626_000,
-		});
-	});
-	after(() => {
-		mock.timers.reset();
-	});
-	test("commit.summary before commit.hash_short", () => {
-		assert.strictEqual(
-			parseTokens(
-				"${commit.summary} ${commit.hash_short}",
-				normalizedCommitInfoTokens,
-			),
-			"list_lru: introduce per-memcg lists 60d3fd3",
-		);
-	});
-
-	test("commit.summary before shortened commit.hash_short", () => {
-		assert.strictEqual(
-			parseTokens(
-				"${commit.summary} ${commit.hash_short,7}",
-				normalizedCommitInfoTokens,
-			),
-			"list_lru: introduce per-memcg lists 60d3fd3",
-		);
-	});
-
-	test("commit.summary before shortened commit.hash", () => {
-		assert.strictEqual(
-			parseTokens(
-				"${commit.summary} ${commit.hash,7}",
-				normalizedCommitInfoTokens,
-			),
-			"list_lru: introduce per-memcg lists 60d3fd3",
-		);
-	});
-
-	test("commit.summary before shortened commit.summary", () => {
-		assert.strictEqual(
-			parseTokens(
-				"${commit.summary} ${commit.summary,7}",
-				normalizedCommitInfoTokens,
-			),
-			"list_lru: introduce per-memcg lists list_lr",
 		);
 	});
 });
@@ -420,15 +297,10 @@ suite("Text Sanitizing", async (): Promise<void> => {
 		"summary",
 		"list_lru: \u202eintroduce per-memcg lists",
 	);
-	const normalizedCommitInfoTokens = normalizeCommitInfoTokens(
-		exampleCommit.commit,
-	);
+	const view = normalizeCommitInfoTokens(exampleCommit.commit);
 	test("removes right-to-left override characters from text", () => {
 		assert.strictEqual(
-			parseTokens(
-				"Blame ${author.name} (${commit.summary})",
-				normalizedCommitInfoTokens,
-			),
+			renderTemplate("Blame {{author.name}} ({{commit.summary}})", view),
 			"Blame Vladimir Davydov (list_lru: introduce per-memcg lists)",
 		);
 	});
@@ -441,24 +313,18 @@ suite("Current User Replace", async (): Promise<void> => {
 	});
 	afterEach(() => prop.clearOverrides());
 
-	test("removes right-to-left override characters from text", async () => {
+	test("replaces author name with alias for current user", async () => {
 		prop.setOverride("currentUserAlias", "CURRENT_USER");
-		const normalizedCommitInfoTokens = normalizeCommitInfoTokens(
+		const view = normalizeCommitInfoTokens(
 			getExampleCommit("<vdavydov.dev@gmail.com>").commit,
 		);
 
 		assert.strictEqual(
-			parseTokens(
-				"Blame ${author.name} (${commit.summary})",
-				normalizedCommitInfoTokens,
-			),
+			renderTemplate("Blame {{author.name}} ({{commit.summary}})", view),
 			"Blame CURRENT_USER (list_lru: introduce per-memcg lists)",
 		);
 		assert.strictEqual(
-			parseTokens(
-				"Blame ${committer.name} (${commit.summary})",
-				normalizedCommitInfoTokens,
-			),
+			renderTemplate("Blame {{committer.name}} ({{commit.summary}})", view),
 			"Blame Linus Torvalds (list_lru: introduce per-memcg lists)",
 		);
 	});

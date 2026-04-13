@@ -8,15 +8,21 @@ import test, {
 } from "node:test";
 import { setupCachedGit } from "../../src/git/command/CachedGit.js";
 import { Logger } from "../../src/logger.js";
-import { parseTokens } from "../../src/string-stuff/text-decorator.js";
+import {
+	renderTemplate,
+	type TemplateView,
+} from "../../src/string-stuff/text-decorator.js";
 import { getExampleCommit } from "../getExampleCommit.js";
 import { setupPropertyStore } from "../setupPropertyStore.js";
 
-function call(
-	func: string | ((param?: string) => string | undefined),
-	arg?: string,
-) {
-	return typeof func === "string" ? func : func(arg);
+function nested(view: TemplateView, path: string): unknown {
+	const parts = path.split(".");
+	let current: unknown = view;
+	for (const part of parts) {
+		if (current == null || typeof current !== "object") return undefined;
+		current = (current as Record<string, unknown>)[part];
+	}
+	return current;
 }
 
 async function setupMocks(
@@ -85,25 +91,22 @@ suite("Generate URL Tokens", () => {
 
 		assert.ok(tokens);
 
-		assert.strictEqual(call(tokens["gitorigin.hostname"], ""), "github.com");
-		assert.strictEqual(call(tokens["gitorigin.hostname"], "0"), "github");
-		assert.strictEqual(call(tokens["gitorigin.hostname"], "1"), "com");
+		assert.strictEqual(nested(tokens, "gitorigin.hostname.full"), "github.com");
+		assert.strictEqual(nested(tokens, "gitorigin.hostname.0"), "github");
+		assert.strictEqual(nested(tokens, "gitorigin.hostname.1"), "com");
 		assert.strictEqual(
-			call(tokens["gitorigin.path"], ""),
+			nested(tokens, "gitorigin.path.full"),
 			"/Sertion/vscode-gitblame",
 		);
-		assert.strictEqual(call(tokens["gitorigin.path"], "0"), "Sertion");
-		assert.strictEqual(call(tokens["gitorigin.path"], "1"), "vscode-gitblame");
+		assert.strictEqual(nested(tokens, "gitorigin.path.0"), "Sertion");
+		assert.strictEqual(nested(tokens, "gitorigin.path.1"), "vscode-gitblame");
+		assert.strictEqual(tokens.hash, "60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce");
+		assert.strictEqual(nested(tokens, "project.name"), "vscode-gitblame");
 		assert.strictEqual(
-			call(tokens.hash),
-			"60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce",
-		);
-		assert.strictEqual(call(tokens["project.name"]), "vscode-gitblame");
-		assert.strictEqual(
-			call(tokens["project.remote"]),
+			nested(tokens, "project.remote"),
 			"github.com/Sertion/vscode-gitblame",
 		);
-		assert.strictEqual(call(tokens["file.path"]), "/fake.file");
+		assert.strictEqual(nested(tokens, "file.path"), "/fake.file");
 	});
 
 	test("git@ origin", async (t) => {
@@ -123,25 +126,22 @@ suite("Generate URL Tokens", () => {
 
 		assert.ok(tokens);
 
-		assert.strictEqual(call(tokens["gitorigin.hostname"], ""), "github.com");
-		assert.strictEqual(call(tokens["gitorigin.hostname"], "0"), "github");
-		assert.strictEqual(call(tokens["gitorigin.hostname"], "1"), "com");
+		assert.strictEqual(nested(tokens, "gitorigin.hostname.full"), "github.com");
+		assert.strictEqual(nested(tokens, "gitorigin.hostname.0"), "github");
+		assert.strictEqual(nested(tokens, "gitorigin.hostname.1"), "com");
 		assert.strictEqual(
-			call(tokens["gitorigin.path"], ""),
+			nested(tokens, "gitorigin.path.full"),
 			"/Sertion/vscode-gitblame",
 		);
-		assert.strictEqual(call(tokens["gitorigin.path"], "0"), "Sertion");
-		assert.strictEqual(call(tokens["gitorigin.path"], "1"), "vscode-gitblame");
+		assert.strictEqual(nested(tokens, "gitorigin.path.0"), "Sertion");
+		assert.strictEqual(nested(tokens, "gitorigin.path.1"), "vscode-gitblame");
+		assert.strictEqual(tokens.hash, "60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce");
+		assert.strictEqual(nested(tokens, "project.name"), "vscode-gitblame");
 		assert.strictEqual(
-			call(tokens.hash),
-			"60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce",
-		);
-		assert.strictEqual(call(tokens["project.name"]), "vscode-gitblame");
-		assert.strictEqual(
-			call(tokens["project.remote"]),
+			nested(tokens, "project.remote"),
 			"github.com/Sertion/vscode-gitblame",
 		);
-		assert.strictEqual(call(tokens["file.path"]), "/fake.file");
+		assert.strictEqual(nested(tokens, "file.path"), "/fake.file");
 	});
 
 	test("ssh://git@ origin", async (t) => {
@@ -162,26 +162,23 @@ suite("Generate URL Tokens", () => {
 
 		assert.ok(tokens);
 
-		assert.strictEqual(call(tokens["gitorigin.hostname"], ""), "github.com");
-		assert.strictEqual(call(tokens["gitorigin.hostname"], "0"), "github");
-		assert.strictEqual(call(tokens["gitorigin.hostname"], "1"), "com");
+		assert.strictEqual(nested(tokens, "gitorigin.hostname.full"), "github.com");
+		assert.strictEqual(nested(tokens, "gitorigin.hostname.0"), "github");
+		assert.strictEqual(nested(tokens, "gitorigin.hostname.1"), "com");
 		assert.strictEqual(
-			call(tokens["gitorigin.path"], ""),
+			nested(tokens, "gitorigin.path.full"),
 			"/Sertion/vscode-gitblame",
 		);
-		assert.strictEqual(call(tokens["gitorigin.path"], "0"), "Sertion");
-		assert.strictEqual(call(tokens["gitorigin.path"], "1"), "vscode-gitblame");
+		assert.strictEqual(nested(tokens, "gitorigin.path.0"), "Sertion");
+		assert.strictEqual(nested(tokens, "gitorigin.path.1"), "vscode-gitblame");
+		assert.strictEqual(tokens.hash, "60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce");
+		assert.strictEqual(nested(tokens, "project.name"), "vscode-gitblame");
 		assert.strictEqual(
-			call(tokens.hash),
-			"60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce",
-		);
-		assert.strictEqual(call(tokens["project.name"]), "vscode-gitblame");
-		assert.strictEqual(
-			call(tokens["project.remote"]),
+			nested(tokens, "project.remote"),
 			"github.com/Sertion/vscode-gitblame",
 		);
-		assert.strictEqual(call(tokens["file.path"]), "/fake.file");
-		assert.strictEqual(call(tokens["file.line"]), "100");
+		assert.strictEqual(nested(tokens, "file.path"), "/fake.file");
+		assert.strictEqual(nested(tokens, "file.line"), "100");
 	});
 
 	test("ssh://git@git.company.com/project_x/test-repository.git origin", async (t) => {
@@ -203,29 +200,26 @@ suite("Generate URL Tokens", () => {
 		assert.ok(tokens);
 
 		assert.strictEqual(
-			call(tokens["gitorigin.hostname"], ""),
+			nested(tokens, "gitorigin.hostname.full"),
 			"git.company.com",
 		);
-		assert.strictEqual(call(tokens["gitorigin.hostname"], "0"), "git");
-		assert.strictEqual(call(tokens["gitorigin.hostname"], "1"), "company");
-		assert.strictEqual(call(tokens["gitorigin.hostname"], "2"), "com");
+		assert.strictEqual(nested(tokens, "gitorigin.hostname.0"), "git");
+		assert.strictEqual(nested(tokens, "gitorigin.hostname.1"), "company");
+		assert.strictEqual(nested(tokens, "gitorigin.hostname.2"), "com");
 		assert.strictEqual(
-			call(tokens["gitorigin.path"], ""),
+			nested(tokens, "gitorigin.path.full"),
 			"/project_x/test-repository",
 		);
-		assert.strictEqual(call(tokens["gitorigin.path"], "0"), "project_x");
-		assert.strictEqual(call(tokens["gitorigin.path"], "1"), "test-repository");
+		assert.strictEqual(nested(tokens, "gitorigin.path.0"), "project_x");
+		assert.strictEqual(nested(tokens, "gitorigin.path.1"), "test-repository");
+		assert.strictEqual(tokens.hash, "60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce");
+		assert.strictEqual(nested(tokens, "project.name"), "test-repository");
 		assert.strictEqual(
-			call(tokens.hash),
-			"60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce",
-		);
-		assert.strictEqual(call(tokens["project.name"]), "test-repository");
-		assert.strictEqual(
-			call(tokens["project.remote"]),
+			nested(tokens, "project.remote"),
 			"git.company.com/project_x/test-repository",
 		);
-		assert.strictEqual(call(tokens["file.path"]), "/fake.file");
-		assert.strictEqual(call(tokens["file.line"]), "100");
+		assert.strictEqual(nested(tokens, "file.path"), "/fake.file");
+		assert.strictEqual(nested(tokens, "file.line"), "100");
 	});
 
 	test("local development (#128 regression)", async (t) => {
@@ -271,8 +265,8 @@ suite("Use generated URL tokens", () => {
 		assert.ok(tokens);
 
 		assert.strictEqual(
-			parseTokens(
-				"${tool.protocol}//${gitorigin.hostname}${gitorigin.port}${gitorigin.path}${tool.commitpath}${hash}",
+			renderTemplate(
+				"{{tool.protocol}}//{{gitorigin.hostname.full}}{{gitorigin.port}}{{gitorigin.path.full}}{{tool.commitpath}}{{hash}}",
 				tokens,
 			),
 			"https://git.company.com/project_x/test-repository/commit/60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce",
@@ -298,8 +292,8 @@ suite("Use generated URL tokens", () => {
 		assert.ok(tokens);
 
 		assert.strictEqual(
-			parseTokens(
-				"${tool.protocol}//${gitorigin.hostname}${gitorigin.port}${gitorigin.path}${tool.commitpath}${hash}",
+			renderTemplate(
+				"{{tool.protocol}}//{{gitorigin.hostname.full}}{{gitorigin.port}}{{gitorigin.path.full}}{{tool.commitpath}}{{hash}}",
 				tokens,
 			),
 			"http://git.company.com:8080/project_x/test-repository/commit/60d3fd32a7a9da4c8c93a9f89cfda22a0b4c65ce",
