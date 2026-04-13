@@ -1,5 +1,10 @@
-import { type FSWatcher, promises, watch } from "node:fs";
-import { type Disposable, workspace } from "vscode";
+import {
+	type Disposable,
+	type FileSystemWatcher,
+	RelativePattern,
+	Uri,
+	workspace,
+} from "vscode";
 import { type Blame, BlamedFile } from "./blamed-file.js";
 import { git } from "./git/command/CachedGit.js";
 import type { LineAttachedCommit } from "./git/LineAttachedCommit.js";
@@ -17,7 +22,7 @@ export class Blamer {
 		| undefined
 	>();
 	private readonly files = new Map<string, Promise<Blame | undefined>>();
-	private readonly fsWatchers = new Map<string, FSWatcher>();
+	private readonly fsWatchers = new Map<string, FileSystemWatcher>();
 	private readonly blameQueue = new Queue<Blame | undefined>(
 		PropertyStore.get("parallelBlames"),
 	);
@@ -62,7 +67,7 @@ export class Blamer {
 		this.metadata.delete(blame);
 
 		this.files.delete(fileName);
-		this.fsWatchers.get(fileName)?.close();
+		this.fsWatchers.get(fileName)?.dispose();
 		this.fsWatchers.delete(fileName);
 		Logger.info(`Cache for "${fileName}" cleared. File watcher closed.`);
 	}
@@ -93,13 +98,23 @@ export class Blamer {
 
 		Logger.debug(`Setting up file watcher for "${file.filePath}"`);
 
-		this.fsWatchers.set(
-			file.filePath,
-			watch(file.filePath, { persistent: false }, () => {
-				Logger.trace(`File watcher callback for "${file.filePath}" executed`);
-				this.remove(file.filePath);
-			}),
+		// vscode.workspace.createFileSystemWatcher routes through whichever
+		// FileSystemProvider is active for the URI scheme — file:// on desktop,
+		// virtual providers in worker-host. Using it instead of node:fs.watch
+		// makes this code provider-agnostic.
+		const watcher = workspace.createFileSystemWatcher(
+			new RelativePattern(Uri.file(file.filePath), "*"),
+			false, // ignoreCreateEvents
+			false, // ignoreChangeEvents
+			false, // ignoreDeleteEvents
 		);
+		const invalidate = () => {
+			Logger.trace(`File watcher callback for "${file.filePath}" executed`);
+			this.remove(file.filePath);
+		};
+		watcher.onDidChange(invalidate);
+		watcher.onDidDelete(invalidate);
+		this.fsWatchers.set(file.filePath, watcher);
 
 		const blame = this.blameQueue.add(() => file.getBlame());
 		this.metadata.set(blame, { file, gitRoot });
@@ -113,7 +128,7 @@ export class Blamer {
 		| { gitRoot: undefined; file: undefined }
 	> {
 		try {
-			await promises.access(fileName);
+			await workspace.fs.stat(Uri.file(fileName));
 
 			const gitRoot = await git.getRepositoryFolder(fileName);
 			if (gitRoot) {
