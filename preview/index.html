@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>All the Blame — browser-only preview</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header>
+    <h1>All the Blame</h1>
+    <p class="subtitle">
+      Real <code>libgit2</code> blame, computed entirely in your browser.
+      No server. No GitHub login. No Codespace.
+    </p>
+  </header>
+
+  <main>
+    <section class="status">
+      <span id="phase">booting…</span>
+      <span class="sep">·</span>
+      <span id="metrics"></span>
+    </section>
+
+    <section class="file">
+      <header>
+        <h2>demo.ts</h2>
+        <p class="hint">Each line is annotated with the commit and author that introduced it. The annotation appears as soon as <code>libgit2</code> attributes that line during the backward history walk.</p>
+      </header>
+      <pre id="code"></pre>
+    </section>
+
+    <section class="log">
+      <h2>Streaming events</h2>
+      <p class="hint">Live event log from <code>blame_stream.c</code> running inside the WASM module. <em>commit</em> events fire as the algorithm walks history backward; <em>hunk</em> events fire when a line is attributed; <em>done</em> when every line has been blamed.</p>
+      <ul id="events"></ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      <a href="https://github.com/jeffwilde/vscode-all-the-blame">jeffwilde/vscode-all-the-blame</a>
+      · libgit2 ${LG2_VERSION} compiled to WebAssembly via Emscripten ·
+      blame algorithm in <code>wasm-poc/blame_stream.c</code>
+    </p>
+  </footer>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

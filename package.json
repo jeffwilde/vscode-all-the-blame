@@ -30,7 +30,10 @@
 		"test": "tsx --test --experimental-test-module-mocks \"./test/suite/**/*.test.ts\"",
 		"compile-integration-tests": "tsc -p test/integration/tsconfig.json && node -e \"require('fs').mkdirSync('out-test',{recursive:true});require('fs').writeFileSync('out-test/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\"",
 		"pretest-integration": "pnpm run build && pnpm run compile-integration-tests && node test/integration/setup-fixture.mjs",
-		"test-integration": "vscode-test"
+		"test-integration": "vscode-test",
+		"build-preview-fixture": "node scripts/build-preview-fixture.mjs",
+		"build-preview": "pnpm run build-preview-fixture && cp vendor/wasm-git/lg2.js vendor/wasm-git/lg2.wasm preview/",
+		"preview": "pnpm run build-preview && python3 -m http.server 8080 -d preview"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.10",

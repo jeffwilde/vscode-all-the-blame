@@ -225,6 +225,15 @@ export class WasmGitBackend implements GitBackend {
 		const oidPtr = this.bindings.allocOid(headOid);
 		try {
 			let aborted = false;
+			// C signature (see blame_stream.c blame_stream_event_fn):
+			//   (kind, oid_ptr, line_start, line_count,
+			//    name_ptr, email_ptr, when, summary_ptr,
+			//    commits_walked, lines_remaining, user_data) -> int
+			//
+			// For HUNK events line_start/line_count carry the attributed range
+			// AND commits_walked/lines_remaining carry progress at that point.
+			// For COMMIT and DONE events only commits_walked/lines_remaining
+			// are meaningful (line_start/line_count are 0).
 			const cbPtr = this.bindings.lg.addFunction(
 				(
 					kind: number,
@@ -235,41 +244,51 @@ export class WasmGitBackend implements GitBackend {
 					emailPtr: number,
 					when: bigint,
 					summaryPtr: number,
-					origLine: number,
-					origOidPP: number,
+					commitsWalked: number,
+					linesRemaining: number,
 					_userData: number,
 				) => {
-					const evtCommon = {
-						oid: this.bindings.readOid(oidPP),
-						author: namePtr ? this.bindings.lg.UTF8ToString(namePtr) : "",
-						email: emailPtr ? this.bindings.lg.UTF8ToString(emailPtr) : "",
-						when: Number(when),
-						summary: summaryPtr
-							? this.bindings.lg.UTF8ToString(summaryPtr)
-							: "",
-					};
+					const author = namePtr ? this.bindings.lg.UTF8ToString(namePtr) : "";
+					const email = emailPtr ? this.bindings.lg.UTF8ToString(emailPtr) : "";
+					const summary = summaryPtr
+						? this.bindings.lg.UTF8ToString(summaryPtr)
+						: "";
+					const whenN = Number(when);
+
 					let evt: StreamingBlameEvent;
 					if (kind === 0) {
 						evt = {
 							kind: "hunk",
 							line: ls,
 							lines: lc,
-							...evtCommon,
-							origLine,
-							origOid: this.bindings.readOid(origOidPP),
+							oid: this.bindings.readOid(oidPP),
+							author,
+							email,
+							when: whenN,
+							summary,
+							// Note: blame_stream.c v1 does not yet propagate
+							// orig_start_line / orig_commit_id (Phase 6.0).
+							// We emit zero/empty here so the type stays
+							// stable; consumers should treat them as TBD.
+							origLine: 0,
+							origOid: "",
 						};
 					} else if (kind === 1) {
 						evt = {
 							kind: "commit",
-							...evtCommon,
-							commitsWalked: ls,
-							linesRemaining: lc,
+							oid: this.bindings.readOid(oidPP),
+							author,
+							email,
+							when: whenN,
+							summary,
+							commitsWalked,
+							linesRemaining,
 						};
 					} else {
 						evt = {
 							kind: "done",
-							commitsWalked: ls,
-							linesRemaining: lc,
+							commitsWalked,
+							linesRemaining,
 						};
 					}
 					const stop = callback(evt);
@@ -278,7 +297,7 @@ export class WasmGitBackend implements GitBackend {
 				},
 				// Emscripten signature letters:
 				//   ret=i kind=i oid=i ls=i lc=i name=i email=i when=j
-				//   summary=i origLine=i origOid=i userData=i  → 12 chars
+				//   summary=i walked=i remaining=i userData=i  → 12 chars
 				"iiiiiiijiiii",
 			);
 			try {
