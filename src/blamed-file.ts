@@ -10,6 +10,10 @@ import { Logger } from "./logger.js";
 
 export type Blame = Map<number, LineAttachedCommit | undefined>;
 
+// NOTE: BlamedFile is part of the CLI git implementation (it spawns
+// `git blame --incremental` and parses the porcelain stream). It will
+// move into CliGitBackend wholesale in Phase 3 when the WasmGitBackend
+// adds an alternative blame stream source.
 export class BlamedFile {
 	private store?: Promise<Blame | undefined>;
 	private process?: Promise<BlameProcess>;

@@ -10,7 +10,7 @@ import {
 	parseTokens,
 } from "../string-stuff/text-decorator.js";
 import { getvscode } from "../vscode-quarantine.js";
-import { getGeneralGitInfo } from "./command/getGeneralGitInfo.js";
+import { getGitBackend } from "./backend/index.js";
 import type { LineAttachedCommit } from "./LineAttachedCommit.js";
 import { originUrlToToolUrl } from "./origin-url-to-tool-url.js";
 import { projectNameFromOrigin } from "./project-name-from-origin.js";
@@ -90,7 +90,10 @@ function isToolUrlPlural(origin: string): boolean {
 export async function generateUrlTokens(
 	lineAware: LineAttachedCommit,
 ): Promise<ToolUrlTokens | undefined> {
-	const generalGit = await getGeneralGitInfo(PropertyStore.get("remoteName"));
+	const backend = await getGitBackend();
+	const generalGit = await backend.getGeneralGitInfo(
+		PropertyStore.get("remoteName"),
+	);
 	if (generalGit === undefined || generalGit.remoteUrl === "") {
 		Logger.info("Unable to find remote URL. Can not provide URL.");
 		return;
