@@ -6,7 +6,7 @@ import {
 	workspace,
 } from "vscode";
 import { type Blame, BlamedFile } from "./blamed-file.js";
-import { git } from "./git/command/CachedGit.js";
+import { getGitBackend } from "./git/backend/index.js";
 import type { LineAttachedCommit } from "./git/LineAttachedCommit.js";
 import { Queue } from "./git/queue.js";
 import { Logger } from "./logger.js";
@@ -130,7 +130,8 @@ export class Blamer {
 		try {
 			await workspace.fs.stat(Uri.file(fileName));
 
-			const gitRoot = await git.getRepositoryFolder(fileName);
+			const backend = await getGitBackend();
+			const gitRoot = await backend.getRepositoryFolder(fileName);
 			if (gitRoot) {
 				return { gitRoot, file: new BlamedFile(fileName) };
 			}
