@@ -1,6 +1,7 @@
 import type { Disposable, ExtensionContext } from "vscode";
 import type { Extension } from "./extension.js";
 import { setvscodeForActiveTextEditor } from "./get-active.js";
+import { CoAuthorCache } from "./git/coauthor-cache.js";
 import { setupCachedGit } from "./git/command/CachedGit.js";
 import { PropertyStore } from "./PropertyStore.js";
 import { getvscode } from "./vscode-quarantine.js";
@@ -20,6 +21,7 @@ export async function activate(
 	await PropertyStore.createInstance();
 	setvscodeForActiveTextEditor();
 	await setupCachedGit();
+	CoAuthorCache.createInstance(context.workspaceState);
 
 	const commands = getvscode().then((e) => e?.commands);
 
@@ -33,25 +35,28 @@ export async function activate(
 		}),
 		import("./logger.js").then((i) => i.Logger.createInstance()),
 		commands.then((e) =>
-			e?.registerCommand("gitblame.quickInfo", () => void app?.showMessage()),
+			e?.registerCommand(
+				"alltheblame.quickInfo",
+				() => void app?.showMessage(),
+			),
 		),
 		commands.then((e) =>
-			e?.registerCommand("gitblame.online", () => void app?.blameLink()),
+			e?.registerCommand("alltheblame.online", () => void app?.blameLink()),
 		),
 		commands.then((e) =>
 			e?.registerCommand(
-				"gitblame.addCommitHashToClipboard",
+				"alltheblame.addCommitHashToClipboard",
 				() => void app?.copyHash(),
 			),
 		),
 		commands.then((e) =>
 			e?.registerCommand(
-				"gitblame.addToolUrlToClipboard",
+				"alltheblame.addToolUrlToClipboard",
 				() => void app?.copyToolUrl(),
 			),
 		),
 		commands.then((e) =>
-			e?.registerCommand("gitblame.gitShow", () => void app?.runGitShow()),
+			e?.registerCommand("alltheblame.gitShow", () => void app?.runGitShow()),
 		),
 	]).then((disposables) =>
 		context.subscriptions.push(...disposables.filter((e) => !!e)),

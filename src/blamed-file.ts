@@ -1,5 +1,6 @@
 import { realpath } from "node:fs/promises";
 import { relative } from "node:path";
+import { CoAuthorResolver } from "./git/coauthor.js";
 import { type BlameProcess, blameProcess } from "./git/command/blameProcess.js";
 import { getGitEmail } from "./git/command/getGitEmail.js";
 import { getRevsFile } from "./git/command/getRevsFile.js";
@@ -63,6 +64,7 @@ export class BlamedFile {
 		const realpathFileName = await realpath(this.filePath);
 
 		try {
+			const resolver = new CoAuthorResolver(realpathFileName);
 			for await (const lineAttachedCommit of this.run(realpathFileName)) {
 				Logger.trace(
 					`Found blame information for ${realpathFileName}:${
@@ -70,7 +72,9 @@ export class BlamedFile {
 					}: hash:${lineAttachedCommit.commit.hash}`,
 				);
 				blameInfo.set(lineAttachedCommit.line.result, lineAttachedCommit);
+				resolver.observe(lineAttachedCommit.commit);
 			}
+			await resolver.flush();
 		} catch (err) {
 			Logger.error(err);
 			this.dispose();

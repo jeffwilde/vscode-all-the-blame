@@ -16,7 +16,7 @@ async function setupMocks(
 				executeMock[args.join(" ") as keyof typeof executeMock] ?? "",
 		},
 	});
-	setupCachedGit();
+	await setupCachedGit();
 	return await setupPropertyStore();
 }
 

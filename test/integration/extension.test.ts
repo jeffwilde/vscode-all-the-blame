@@ -7,7 +7,8 @@ const pkg = JSON.parse(
 	fs.readFileSync(path.resolve(__dirname, "../../package.json"), "utf8"),
 );
 const extensionId = `${pkg.publisher}.${pkg.name}`;
-const settingsPrefix = pkg.name === "all-the-blame" ? "alltheblame" : "gitblame";
+const settingsPrefix =
+	pkg.name === "all-the-blame" ? "alltheblame" : "gitblame";
 
 type ExtensionApi = {
 	getStatusBarText(): string;
@@ -92,10 +93,7 @@ suite("Extension lifecycle", () => {
 			`${settingsPrefix}.gitShow`,
 		];
 		for (const cmd of expected) {
-			assert.ok(
-				commands.includes(cmd),
-				`Command ${cmd} should be registered`,
-			);
+			assert.ok(commands.includes(cmd), `Command ${cmd} should be registered`);
 		}
 	});
 });
