@@ -69,7 +69,7 @@
 		"gitlab",
 		"bitbucket"
 	],
-	"icon": "images/git_icon_3d.png",
+	"icon": "images/extension-icon.png",
 	"activationEvents": [
 		"onEditSession:file",
 		"onFileSystem:file",
