@@ -29,13 +29,54 @@ jobs:
             - name: Install Dependencies
               run: pnpm install --frozen-lockfile
 
-            - name: Build preview
+            - name: Build extension
+              run: pnpm run build
+
+            - name: Build WASM-only preview
               run: pnpm run build-preview
+
+            - name: Build vscode-web preview
+              run: node scripts/build-vscode-web-preview.mjs
+
+            - name: Assemble deploy directory
+              run: |
+                mkdir -p site
+                cp -r preview site/wasm
+                cp -r preview-vscode-web site/vscode
+                cat > site/index.html <<'EOF'
+                <!doctype html>
+                <html><head>
+                <meta charset="utf-8"><title>All the Blame — previews</title>
+                <style>
+                body{font:16px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#0d1117;color:#c9d1d9;max-width:640px;margin:40px auto;padding:0 20px}
+                a{color:#58a6ff}
+                h1{font-weight:600}
+                .card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;margin:16px 0}
+                .card h2{margin:0 0 8px;font-size:18px}
+                .card p{margin:0 0 12px;color:#8b949e}
+                code{background:rgba(110,118,129,.15);padding:1px 4px;border-radius:3px;font-size:0.9em}
+                </style>
+                </head><body>
+                <h1>All the Blame — previews</h1>
+                <p>Two browser-only demos of the libgit2-via-WASM blame stack.</p>
+                <div class="card">
+                  <h2><a href="./wasm/">Lightweight WASM demo</a></h2>
+                  <p>~1 MB page. Loads our custom libgit2 build and runs <code>lg2_blame_stream</code> against a bundled fixture. Renders events live. Proves the C/WASM plumbing. Fastest first-paint.</p>
+                </div>
+                <div class="card">
+                  <h2><a href="./vscode/">Full VS Code for the Web</a></h2>
+                  <p>~117 MB first-visit download (CDN-cached after). Loads real VS Code for the Web with our extension pre-installed. See the actual status bar / inline decorations / hover cards as the extension activates on a file.</p>
+                </div>
+                <p style="margin-top:40px;color:#8b949e;font-size:13px">Source: <a href="https://github.com/jeffwilde/vscode-all-the-blame">jeffwilde/vscode-all-the-blame</a></p>
+                </body></html>
+                EOF
+                ls -la site/
+                du -sh site/*
 
             - name: Upload artifact
               uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
               with:
-                  path: preview
+                  path: site
 
     deploy:
         needs: build
