@@ -162,18 +162,26 @@ init in WASM is ~50–100ms, but stays warm across calls. Plausibly a
 ### Caveats / scope of the spike
 
 This first version is a simpler algorithm than libgit2's full `blame.c`.
-It does not yet:
-- follow renames or copies (`-C`/`-M`)
-- handle line-range option `-L`
-- handle skip-revs `-S`
-- map line numbers across edits in subsequent commits (uses the
-  simplifying assumption that lines don't move; works correctly when
-  a file is purely append-only or commits don't shift line numbers in
-  ranges that aren't yet attributed — adequate for the demo fixture
-  and for ~95 % of real-world cases)
+The full feature inventory of canonical `git blame` — what's covered today,
+what libgit2 supports natively, what we'd need to add for parity, and the
+proposed PR sequence to get there — is in `FEATURE_PARITY.md`.
+
+Highlights of what's NOT in the spike yet (full table in `FEATURE_PARITY.md`):
+- Line-number translation across edits (the simplifying assumption)
+- Rename/copy/move detection (`-C`, `-M`, `--follow`)
+- All the whitespace flags (`-w`, `--ignore-blank-lines`, etc.)
+- Line-range scoping (`-L`)
+- Ignore-revs-file (`-S`) — wanted because the extension already has a
+  `revsFile` setting
+- Mailmap (`--mailmap`)
+- Custom object database backend for bridging `vscode.workspace.fs`
+- Several output fields (orig line number, signature timezone, full
+  commit message body)
 
 These gaps are intentional for the spike and are queued as follow-ups
-for the production implementation.
+for the production implementation. The PR sequence in
+`FEATURE_PARITY.md` lays them out in priority order, with each row
+mapping to one PR.
 
 ### Could it be contributed upstream?
 
