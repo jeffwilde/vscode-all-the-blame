@@ -47,9 +47,10 @@ export class GitRepositoryWatcher {
 	private readonly vscodeApiFactory: VscodeApiFactory;
 
 	public constructor(...targets: RepositoryTarget[]);
-	public constructor(
-		options: { targets: RepositoryTarget[]; vscodeApi?: VscodeApiFactory },
-	);
+	public constructor(options: {
+		targets: RepositoryTarget[];
+		vscodeApi?: VscodeApiFactory;
+	});
 	public constructor(
 		first?:
 			| RepositoryTarget
