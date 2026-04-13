@@ -5,9 +5,14 @@ let backendPromise: Promise<GitBackend> | undefined;
 /**
  * Returns the singleton GitBackend appropriate for the current host.
  *
- * Phase 2: always returns the CLI backend. Phase 3 will detect whether
- * `child_process` is available and select the wasm-git backend in
- * worker-host environments.
+ * - local-host / remote-host (Node.js with child_process available):
+ *   CliGitBackend that spawns real git
+ * - worker-host (browser / web worker, no child_process):
+ *   WasmGitBackend that runs libgit2 inside a WebAssembly module
+ *
+ * Detection is based on whether `child_process` can be require'd. The
+ * specific check is wrapped in try/catch so that bundlers which strip
+ * unused branches still produce a working build for either target.
  */
 export function getGitBackend(): Promise<GitBackend> {
 	backendPromise ??= load();
@@ -15,10 +20,29 @@ export function getGitBackend(): Promise<GitBackend> {
 }
 
 async function load(): Promise<GitBackend> {
-	// Phase-3 will branch here:
-	//   if (!hasChildProcess()) return new (await import('./WasmGitBackend.js')).WasmGitBackend();
-	const { CliGitBackend } = await import("./CliGitBackend.js");
-	return new CliGitBackend();
+	if (await isChildProcessAvailable()) {
+		const { CliGitBackend } = await import("./CliGitBackend.js");
+		return new CliGitBackend();
+	}
+	const { WasmGitBackend } = await import("./WasmGitBackend.js");
+	// In worker-host the wasm-git module is loaded relative to the
+	// extension bundle; the path is rewritten by the web-target build.
+	// @ts-expect-error -- vendor file, no .d.ts; resolved by esbuild at
+	// build time when the web entry is bundled.
+	const factory = (await import("../../../vendor/wasm-git/lg2.js")).default;
+	return WasmGitBackend.create(factory);
+}
+
+async function isChildProcessAvailable(): Promise<boolean> {
+	// In a Node.js extension host this resolves; in a web worker the import
+	// fails (vscode marks node:* as external in the web target, and the
+	// runtime has no node:child_process). Either way the result is cached.
+	try {
+		await import("node:child_process");
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 /**

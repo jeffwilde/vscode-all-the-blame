@@ -11,6 +11,7 @@
 		"node": ">=22.22.0"
 	},
 	"main": "./out/index.js",
+	"browser": "./out/web/web-entry.js",
 	"packageManager": "pnpm@10.33.0",
 	"pnpm": {
 		"onlyBuiltDependencies": [
@@ -72,13 +73,14 @@
 	],
 	"qna": false,
 	"extensionKind": [
-		"workspace"
+		"workspace",
+		"ui"
 	],
 	"capabilities": {
-		"virtualWorkspaces": false,
+		"virtualWorkspaces": true,
 		"untrustedWorkspaces": {
 			"supported": false,
-			"description": "Git Blame (extension) executes command line tools in the workspace"
+			"description": "Git Blame executes git operations in the workspace"
 		}
 	},
 	"contributes": {
