@@ -10,3 +10,7 @@
 !out/execute-*.js
 !out/logger-*.js
 !out/property-*.js
+!out/CliGitBackend-*.js
+!out/WasmGitBackend-*.js
+!out/web/**/*.js
+!out/web/**/*.wasm
