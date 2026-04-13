@@ -30,7 +30,12 @@
 		"test": "tsx --test --experimental-test-module-mocks \"./test/suite/**/*.test.ts\"",
 		"compile-integration-tests": "tsc -p test/integration/tsconfig.json && node -e \"require('fs').mkdirSync('out-test',{recursive:true});require('fs').writeFileSync('out-test/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\"",
 		"pretest-integration": "pnpm run build && pnpm run compile-integration-tests && node test/integration/setup-fixture.mjs",
-		"test-integration": "vscode-test"
+		"test-integration": "vscode-test",
+		"build-preview-fixture": "node scripts/build-preview-fixture.mjs",
+		"build-preview": "pnpm run build-preview-fixture && cp vendor/wasm-git/lg2.js vendor/wasm-git/lg2.wasm preview/",
+		"preview": "pnpm run build-preview && python3 -m http.server 8080 -d preview",
+		"build-preview-vscode": "pnpm run build && node scripts/build-vscode-web-preview.mjs",
+		"preview-vscode": "pnpm run build-preview-vscode && python3 -m http.server 8081 -d preview-vscode-web"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.10",
@@ -39,6 +44,7 @@
 		"@types/vscode": "1.100.0",
 		"@vscode/test-cli": "^0.0.12",
 		"@vscode/test-electron": "^2.5.2",
+		"@vscode/test-web": "^0.0.80",
 		"esbuild": "0.27.4",
 		"mocha": "^11.7.5",
 		"tsx": "4.21.0",
