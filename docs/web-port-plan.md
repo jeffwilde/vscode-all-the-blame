@@ -54,12 +54,33 @@ We deliberately skip the GitHub-GraphQL-backed path. It's a valuable optimizatio
 
 ### The WASM choice
 
-**wasm-git** (libgit2 compiled to WASM via Emscripten), not isomorphic-git:
+**Forked wasm-git with FFI exports** (libgit2 compiled to WASM via Emscripten), not isomorphic-git, not gitoxide, not isomorphic alternatives.
+
+#### Why not the alternatives
+
+All checked empirically (see `wasm-poc/README.md`):
+
+- **gitoxide → wasm32**: blocked by `gix-fs`, `gix-tempfile`, `gix-worktree` not compiling to wasm. Upstream issue [#463](https://github.com/GitoxideLabs/gitoxide/issues/463) open since 2022.
+- **git2-rs → wasm32-wasip1 with wasi-sdk 25**: even with the proper toolchain installed, libgit2's `util/unix/*.c` files use POSIX functions wasi-libc doesn't provide. Source porting required.
+- **wasm-git as shipped on npm**: blame example only supports a positional file argument (no `-w`/`-S`/`-L`/`--porcelain`/`--incremental`), and the `.wasm` exposes only minified Emscripten internals.
+
+#### Why the forked wasm-git path works
+
+A 21-line patch to wasm-git's `emscriptenbuild/build.sh` plus an 80-line C file (`blame_exports.c`) dropped into `libgit2/examples/` exposes the libgit2 C API to JS via Emscripten's `cwrap` mechanism. Empirically verified:
+
+```
+init: 1
+blame returned 2 hunks for sample.txt:
+  hunk 0: lines 1+1  Alice <alice@test.com>  @2020-01-01T00:00:00.000Z  (48337b21)
+  hunk 1: lines 2+1  Bob <bob@test.com>     @2021-06-15T12:00:00.000Z  (49e36962)
+✅ libgit2 blame via direct WASM FFI works.
+```
 
 - Real git semantics — bit-for-bit identical blame output to CLI git
 - No reimplementing subtle edge cases (renames, whitespace, -S/-C flags, co-author trailers)
 - Tracks upstream git as the library updates
-- Larger bundle (~1MB gzipped WASM) is acceptable for the preview use case
+- Bundle: 826 KB raw / 348 KB gzipped — rounding-error inside vscode-web
+- Custom `git_odb_backend` (libgit2 callback-based backend) is the path to bridging `vscode.workspace.fs` so libgit2 reads through any `FileSystemProvider` instead of needing MEMFS copies
 
 ## Phases
 
