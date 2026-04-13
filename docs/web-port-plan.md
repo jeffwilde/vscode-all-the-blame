@@ -140,11 +140,27 @@ Components:
 
 Acceptance: opening the URL in a fresh browser session (incognito, no auth) loads VS Code-for-the-Web, our extension is active, and blame renders against the fixture with the expected authors and times. No network calls to GitHub or any backend after the static assets land.
 
+### Phase 6 — blame feature parity with canonical git *(stack of PRs)*
+
+**This is the immediate next phase after Phase 5 lands.** The MVP demonstrated by Phase 5 uses a simplified blame algorithm in `wasm-poc/blame_stream.c` (no rename-following, no `-w`, no `-L`, no `-S`, no mailmap, etc.). To ship beyond demo quality we need feature parity with canonical `git blame`.
+
+The full inventory of every canonical `git blame` feature, libgit2's native support, our spike's coverage today, and the PR-by-PR plan to close each gap is in [`wasm-poc/FEATURE_PARITY.md`](../wasm-poc/FEATURE_PARITY.md).
+
+Phase 6 unfolds as a stack of sub-PRs in this priority order (sketched in the parity doc):
+
+- **Phase 6.0 — algorithmic correctness:** fix line-number translation across edits, emit missing event fields (orig OID/line, signature timezone, full commit message body), wire the custom `git_odb_backend` for the `vscode.workspace.fs` bridge.
+- **Phase 6.1 — common flags:** `-w` ignore-whitespace, `-L` line range, `-S`/`--ignore-revs-file` (already exposed by the extension's existing `revsFile` setting), mailmap, rename-following.
+- **Phase 6.2 — secondary flags:** `--first-parent`, `-M`/`-C` move/copy detection, blame from a non-HEAD start point, large-history performance work.
+- **Phase 6.3+** and beyond: niche flags, possibly libgit2 upstream contributions.
+- **Phase 6.cross-validation:** harness that runs both real `git blame` and our streaming blame on a fixture repo, diffs the outputs, fails CI on divergence. Catches regressions during the parity work.
+
+Each sub-PR is independently reviewable and verifiable, and most map to one-line wirings of an existing libgit2 flag through our options struct.
+
 ## Deliberately skipped
 
 - **Phase 4 (GitHub GraphQL backend)** — out of scope; useful later but not on the critical path to a static preview.
 - **Demo Codespace devcontainer** — the static preview is a strict superset of what a demo Codespace would offer, with less overhead.
-- **Phase 6 (Playwright screenshot tests)** — deferred. Once Phase 5 ships, this is a straightforward follow-up: drive the static preview with Playwright and snapshot-diff the UI.
+- **Playwright screenshot tests** — deferred. Once Phase 5 + 6 ship, this is a straightforward follow-up: drive the static preview with Playwright and snapshot-diff the UI.
 
 ## Scope boundaries
 
