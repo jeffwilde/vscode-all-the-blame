@@ -41,23 +41,41 @@ This flow is implemented identically in
 
 ### 1. Create a scoped Cloudflare API token
 
-Dashboard → **My Profile → API Tokens → Create Token → Custom Token**.
+**Fast path (no dashboard clicking):** use the one-shot script:
 
-Permissions:
-- **Account → Workers R2 Storage → Edit**   (bucket CRUD, managed domain, CORS, temp-access-credentials)
-- **Account → Cloudflare Pages → Edit**     (create/update the Pages project)
+```sh
+export CLOUDFLARE_ACCOUNT_ID=<32-char account id>
 
-Account Resources:
-- **Include → your account only** (do NOT leave as "All accounts")
+# One of these (the script only uses this bootstrap credential for
+# the single /user/tokens call, then throws it away):
+#   - existing token with "User API Tokens → Edit"
+export CF_BOOTSTRAP_AUTH="token:<your-existing-edit-token>"
+#   - or Global API Key (legacy, most powerful — acceptable for a
+#     one-shot bootstrap from a trusted machine)
+export CF_BOOTSTRAP_AUTH="global:<email>:<global-api-key>"
 
-Optional but recommended:
-- **Client IP Address Filtering** — restrict to GitHub Actions'
+# Prints the new token value on stdout. Pipe straight to gh:
+infra/scripts/mint-infra-token.sh | gh secret set CLOUDFLARE_API_TOKEN
+```
+
+The script:
+- looks up the current `permission_group` IDs via
+  `GET /user/tokens/permission_groups` (they're stable but not
+  documented inline)
+- POSTs to `/user/tokens` with the two scopes below
+- sets a 90-day expiry (Cloudflare auto-revokes at expiry)
+
+**Manual path (dashboard):** Profile → **API Tokens → Create Token →
+Custom Token**, then set:
+- **Account → Workers R2 Storage → Edit**
+- **Account → Cloudflare Pages → Edit**
+- **Account Resources → Include → your account only**
+- **TTL: 90 days**
+
+Optional regardless of path:
+- **Client IP Address Filtering** restricted to GitHub Actions'
   published egress ranges (`https://api.github.com/meta` → `actions`).
-  GitHub publishes these; they change occasionally so add a calendar
-  reminder to re-check.
-- **TTL**: 90 days. Calendar a rotation.
-
-Save the generated token — you see it exactly once.
+  These change occasionally — calendar a re-check.
 
 ### 2. Pre-create the `pulumi-state` R2 bucket
 
