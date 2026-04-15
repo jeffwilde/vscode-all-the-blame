@@ -1,94 +1,98 @@
 #!/usr/bin/env bash
-# Bootstraps the scoped Cloudflare API token for the infra pipeline
-# without dashboard clicking. Reads:
-#   CLOUDFLARE_ACCOUNT_ID  — your account ID
-#   CF_BOOTSTRAP_AUTH      — how to auth this one-time request:
-#                            either "token:<token-with-User-API-Tokens-Edit>"
-#                            or "global:<email>:<global-api-key>"
+# Mint (or rotate) the Cloudflare API token described by
+# infra/token-policy.json.
 #
-# Emits on stdout the newly-minted scoped token value. Pipe into
+# The policy file is the source of truth. To add/remove a permission,
+# edit the file and re-run this script — never click through the
+# Cloudflare dashboard.
+#
+# Required env:
+#   CLOUDFLARE_ACCOUNT_ID
+#   CF_BOOTSTRAP_AUTH  — one of:
+#                          "token:<tok>"         (existing token with User API Tokens → Edit)
+#                          "global:<email>:<k>"  (Global API Key)
+#                          "wrangler"            (read ~/.wrangler/config/default.toml)
+#
+# Prints the new token value on stdout. Pipe into:
 #   gh secret set CLOUDFLARE_API_TOKEN
-# or copy by hand. It is ONLY shown once (never retrievable again).
 
 set -euo pipefail
 
+HERE=$(cd "$(dirname "$0")" && pwd)
+POLICY="${POLICY:-$HERE/../token-policy.json}"
+
 : "${CLOUDFLARE_ACCOUNT_ID:?set CLOUDFLARE_ACCOUNT_ID}"
-: "${CF_BOOTSTRAP_AUTH:?set CF_BOOTSTRAP_AUTH to 'token:...' or 'global:EMAIL:KEY'}"
+: "${CF_BOOTSTRAP_AUTH:?set CF_BOOTSTRAP_AUTH (token:..., global:EMAIL:KEY, or wrangler)}"
+[[ -f "$POLICY" ]] || { echo "policy file not found: $POLICY" >&2; exit 1; }
 
 case "$CF_BOOTSTRAP_AUTH" in
-  token:*)
-    AUTH_HEADERS=(-H "Authorization: Bearer ${CF_BOOTSTRAP_AUTH#token:}") ;;
-  global:*)
-    rest="${CF_BOOTSTRAP_AUTH#global:}"
-    AUTH_HEADERS=(
-      -H "X-Auth-Email: ${rest%%:*}"
-      -H "X-Auth-Key: ${rest#*:}"
-    ) ;;
-  *) echo "bad CF_BOOTSTRAP_AUTH format" >&2; exit 2 ;;
+	token:*)
+		AUTH_HEADERS=(-H "Authorization: Bearer ${CF_BOOTSTRAP_AUTH#token:}") ;;
+	global:*)
+		rest="${CF_BOOTSTRAP_AUTH#global:}"
+		AUTH_HEADERS=(-H "X-Auth-Email: ${rest%%:*}" -H "X-Auth-Key: ${rest#*:}") ;;
+	wrangler)
+		TOK=$(awk -F'"' '/^oauth_token/ {print $2; exit}' "$HOME/.wrangler/config/default.toml" 2>/dev/null || true)
+		[[ -n "$TOK" ]] || { echo "no wrangler token found; run 'wrangler login' first" >&2; exit 1; }
+		AUTH_HEADERS=(-H "Authorization: Bearer $TOK") ;;
+	*) echo "bad CF_BOOTSTRAP_AUTH format" >&2; exit 2 ;;
 esac
 
 api() { curl -sSf "${AUTH_HEADERS[@]}" -H "Content-Type: application/json" "$@"; }
 
-# 1. Find the permission_group IDs for "Workers R2 Storage Edit" and
-#    "Cloudflare Pages Edit". The names/IDs are stable but not
-#    documented inline, so we look them up.
-echo "discovering permission group IDs..." >&2
+# --- Read policy ---
+NAME=$(jq -r '.name' "$POLICY")
+TTL_DAYS=$(jq -r '.ttl_days' "$POLICY")
+WANTED_NAMES=$(jq -r '.permissions[].name' "$POLICY")
+
+# --- Resolve permission-group names → IDs ---
+# Permission groups are stable but their IDs aren't documented inline;
+# Cloudflare recommends looking them up by name. We fail loudly if a
+# name in the policy doesn't match anything live, so typos don't
+# silently produce under-scoped tokens.
+echo "resolving permission group IDs..." >&2
 GROUPS=$(api "https://api.cloudflare.com/client/v4/user/tokens/permission_groups")
 
-R2_ID=$(jq -r '.result[] | select(.name == "Workers R2 Storage Write") | .id' <<<"$GROUPS")
-PAGES_ID=$(jq -r '.result[] | select(.name == "Pages Write") | .id' <<<"$GROUPS")
+ID_JSON=$(echo "$WANTED_NAMES" | while IFS= read -r name; do
+	id=$(jq -r --arg n "$name" '.result[] | select(.name == $n) | .id' <<<"$GROUPS")
+	if [[ -z "$id" || "$id" == "null" ]]; then
+		echo "ERROR: no permission group named '$name' found" >&2
+		echo "candidates containing similar text:" >&2
+		word=$(awk '{print $1}' <<<"$name")
+		jq -r --arg w "$word" '.result[] | select(.name | test($w; "i")) | "  \(.id)  \(.name)"' <<<"$GROUPS" >&2
+		exit 1
+	fi
+	jq -n --arg id "$id" '{id: $id, meta: {}}'
+done | jq -s '.')
 
-# Cloudflare renames permission groups occasionally. If these fail,
-# grep the dump below for the right names. "Write" is the edit-level;
-# there's also "Workers R2 Storage Read" / "Pages Read" for readonly.
-if [[ -z "$R2_ID" || "$R2_ID" == "null" ]]; then
-  echo "couldn't find R2 write permission group. Available R2 groups:" >&2
-  jq -r '.result[] | select(.name | test("R2"; "i")) | "\(.id)\t\(.name)"' <<<"$GROUPS" >&2
-  exit 1
-fi
-if [[ -z "$PAGES_ID" || "$PAGES_ID" == "null" ]]; then
-  echo "couldn't find Pages write permission group. Available Pages groups:" >&2
-  jq -r '.result[] | select(.name | test("Pages"; "i")) | "\(.id)\t\(.name)"' <<<"$GROUPS" >&2
-  exit 1
-fi
-echo "R2 Write:    $R2_ID"    >&2
-echo "Pages Write: $PAGES_ID" >&2
+# --- Build payload ---
+EXPIRES=$(date -u -d "+$TTL_DAYS days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+	|| date -u -v+"${TTL_DAYS}"d +%Y-%m-%dT%H:%M:%SZ)
+ACCOUNT_RESOURCE="com.cloudflare.api.account.$CLOUDFLARE_ACCOUNT_ID"
 
-# 2. Expiry: 90 days from now, RFC3339.
-EXPIRES=$(date -u -d '+90 days' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
-       || date -u -v+90d +%Y-%m-%dT%H:%M:%SZ)
-
-# 3. Build the token request. Single policy, both permission groups,
-#    scoped to the target account only.
 BODY=$(jq -n \
-  --arg name   "all-the-blame-infra (auto, rotate quarterly)" \
-  --arg acct   "com.cloudflare.api.account.$CLOUDFLARE_ACCOUNT_ID" \
-  --arg r2     "$R2_ID" \
-  --arg pages  "$PAGES_ID" \
-  --arg expire "$EXPIRES" \
-  '{
-     name: $name,
-     policies: [{
-       effect: "allow",
-       permission_groups: [
-         { id: $r2,    meta: {} },
-         { id: $pages, meta: {} }
-       ],
-       resources: { ($acct): "*" }
-     }],
-     expires_on: $expire
-   }')
+	--arg name "$NAME (rotated $(date -u +%Y-%m-%d))" \
+	--arg acct "$ACCOUNT_RESOURCE" \
+	--arg exp  "$EXPIRES" \
+	--argjson groups "$ID_JSON" \
+	'{
+		name: $name,
+		policies: [{
+			effect: "allow",
+			permission_groups: $groups,
+			resources: { ($acct): "*" }
+		}],
+		expires_on: $exp
+	}')
 
-echo "creating token..." >&2
-RESP=$(api -X POST \
-  "https://api.cloudflare.com/client/v4/user/tokens" \
-  --data "$BODY")
+echo "creating token '$NAME' (expires $EXPIRES)..." >&2
+jq -r '.permission_groups[] | "  + \(.)"' <<<"$(echo "$WANTED_NAMES" | jq -R . | jq -s '{permission_groups: .}')" >&2
 
+RESP=$(api -X POST "https://api.cloudflare.com/client/v4/user/tokens" --data "$BODY")
 if [[ "$(jq -r '.success' <<<"$RESP")" != "true" ]]; then
-  echo "token creation failed:" >&2
-  jq . <<<"$RESP" >&2
-  exit 1
+	echo "token creation failed:" >&2
+	jq . <<<"$RESP" >&2
+	exit 1
 fi
 
-# 4. Print token value on stdout (everything diagnostic is on stderr).
 jq -r '.result.value' <<<"$RESP"

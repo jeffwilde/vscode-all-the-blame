@@ -39,43 +39,50 @@ This flow is implemented identically in
 
 ## One-time bootstrap (manual)
 
-### 1. Create a scoped Cloudflare API token
+### 1. Create a scoped Cloudflare API token (token-as-code)
 
-**Fast path (no dashboard clicking):** use the one-shot script:
+The token's permissions are declared in
+[`token-policy.json`](./token-policy.json) — **that file is the source
+of truth**. Never pick permissions by clicking through the Cloudflare
+dashboard; the dashboard selection is ephemeral and non-reproducible,
+the JSON file is versioned, reviewable, and diffable.
 
 ```sh
 export CLOUDFLARE_ACCOUNT_ID=<32-char account id>
 
-# One of these (the script only uses this bootstrap credential for
-# the single /user/tokens call, then throws it away):
-#   - existing token with "User API Tokens → Edit"
-export CF_BOOTSTRAP_AUTH="token:<your-existing-edit-token>"
-#   - or Global API Key (legacy, most powerful — acceptable for a
-#     one-shot bootstrap from a trusted machine)
+# Bootstrap auth — used ONCE to call /user/tokens. Options:
+export CF_BOOTSTRAP_AUTH="token:<existing-token-with-User-API-Tokens-Edit>"
 export CF_BOOTSTRAP_AUTH="global:<email>:<global-api-key>"
+export CF_BOOTSTRAP_AUTH="wrangler"   # uses ~/.wrangler/config/default.toml
 
-# Prints the new token value on stdout. Pipe straight to gh:
+# Mint + stash in one command:
 infra/scripts/mint-infra-token.sh | gh secret set CLOUDFLARE_API_TOKEN
 ```
 
-The script:
-- looks up the current `permission_group` IDs via
-  `GET /user/tokens/permission_groups` (they're stable but not
-  documented inline)
-- POSTs to `/user/tokens` with the two scopes below
-- sets a 90-day expiry (Cloudflare auto-revokes at expiry)
+**To add/remove a permission:** edit `token-policy.json`, commit, re-run
+the mint script, update the secret. The file history shows when and why
+each permission appeared.
 
-**Manual path (dashboard):** Profile → **API Tokens → Create Token →
-Custom Token**, then set:
-- **Account → Workers R2 Storage → Edit**
-- **Account → Cloudflare Pages → Edit**
-- **Account Resources → Include → your account only**
-- **TTL: 90 days**
+**To check what's live:** `infra/scripts/inspect-token.sh` lists your
+tokens and marks the one matching the policy. `--diff` shows permission
+drift between policy file and live token:
 
-Optional regardless of path:
-- **Client IP Address Filtering** restricted to GitHub Actions'
-  published egress ranges (`https://api.github.com/meta` → `actions`).
-  These change occasionally — calendar a re-check.
+```sh
+$ infra/scripts/inspect-token.sh --diff
+token id:   abc123…
+policy file: infra/token-policy.json
+
+  = Pages Write
+  = Workers R2 Storage Write
+live token matches policy.
+```
+
+Optional hardening regardless of mint path:
+- **Client IP Address Filtering** restricted to GitHub Actions' published
+  egress ranges (`https://api.github.com/meta` → `actions`).
+  Not yet expressed in `token-policy.json` because those ranges change
+  often enough that committing them risks stale CI. Add as a TODO if you
+  want it.
 
 ### 2. Pre-create the `pulumi-state` R2 bucket
 
