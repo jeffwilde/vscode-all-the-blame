@@ -33,6 +33,23 @@ import { pipeline } from "node:stream/promises";
 import { get } from "node:https";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// --- CLI flags ---
+//
+// By default we build a fat deployment that bundles the full vscode-web
+// tree under ./vscode-web/. In `--base-url=...` mode we instead point
+// WORKBENCH_WEB_BASE_URL at a remote host (typically the shared R2
+// bucket) and skip the 115 MB copy. This is the mode used for
+// per-PR Cloudflare Pages previews, where only the extension delta
+// ships in each deploy.
+const ARGS = Object.fromEntries(
+	process.argv.slice(2).flatMap((arg) => {
+		const m = /^--([^=]+)=(.*)$/.exec(arg);
+		return m ? [[m[1], m[2]]] : [[arg.replace(/^-+/, ""), true]];
+	}),
+);
+const BASE_URL = typeof ARGS["base-url"] === "string" ? ARGS["base-url"] : null;
+const SLIM = BASE_URL !== null;
 const ROOT = join(__dirname, "..");
 const CACHE = join(ROOT, ".vscode-web-cache");
 const OUT = join(ROOT, "preview-vscode-web");
@@ -80,13 +97,21 @@ function follow(url, dest) {
 
 // --- step 2–4 ---
 async function build() {
+	// In slim mode the workbench assets come from the `--base-url`
+	// host, so we only need the tarball locally if we have to read
+	// package.json for the version tag below. We still extract it
+	// (it's cached) because the boot/main.js in @vscode/test-web
+	// expects to see the right layout.
 	await ensureVscodeWeb();
 
 	rmSync(OUT, { recursive: true, force: true });
 	mkdirSync(OUT, { recursive: true });
 
-	// Copy the vscode-web static tree under ./vscode-web/
-	await cp(EXTRACTED, join(OUT, "vscode-web"), { recursive: true });
+	// In fat mode, copy the full vscode-web tree into the deploy.
+	// In slim mode, the browser fetches it directly from `BASE_URL`.
+	if (!SLIM) {
+		await cp(EXTRACTED, join(OUT, "vscode-web"), { recursive: true });
+	}
 
 	// Copy the boot script from @vscode/test-web. This provides the
 	// WorkspaceProvider / create() that the HTML template expects.
@@ -94,11 +119,13 @@ async function build() {
 		join(ROOT, "node_modules/@vscode/test-web/out/browser/esm/main.js"),
 		"utf8",
 	);
-	// Rewrite the workbench.api import to the real workbench URL.
-	const mainJsFixed = mainJs.replace(
-		"./workbench.api",
-		"./vscode-web/out/vs/workbench/workbench.web.main.internal.js",
-	);
+	// Rewrite the workbench.api import to the real workbench URL. In
+	// slim mode this is the absolute R2 URL; in fat mode it's the
+	// relative path under our own deploy.
+	const workbenchUrl = SLIM
+		? `${BASE_URL.replace(/\/$/, "")}/out/vs/workbench/workbench.web.main.internal.js`
+		: "./vscode-web/out/vs/workbench/workbench.web.main.internal.js";
+	const mainJsFixed = mainJs.replace("./workbench.api", workbenchUrl);
 	mkdirSync(join(OUT, "boot"), { recursive: true });
 	writeFileSync(join(OUT, "boot/main.js"), mainJsFixed);
 
@@ -137,7 +164,7 @@ async function build() {
 	};
 
 	const values = {
-		WORKBENCH_WEB_BASE_URL: "./vscode-web",
+		WORKBENCH_WEB_BASE_URL: SLIM ? BASE_URL.replace(/\/$/, "") : "./vscode-web",
 		// Seeded to empty at build time; overwritten at runtime by the
 		// preamble script below.
 		WORKBENCH_WEB_CONFIGURATION: "{}",
@@ -181,8 +208,10 @@ async function build() {
 			"Open `index.html` in a static host (or run `pnpm preview-vscode`).",
 			"",
 			"Contains:",
-			"- `vscode-web/` — unmodified VS Code for the Web v" +
-				JSON.parse(readFileSync(join(EXTRACTED, "package.json"), "utf8")).version,
+			SLIM
+				? `- vscode-web assets — fetched at runtime from ${BASE_URL}`
+				: "- `vscode-web/` — unmodified VS Code for the Web v" +
+					JSON.parse(readFileSync(join(EXTRACTED, "package.json"), "utf8")).version,
 			"- `extensions/all-the-blame/` — our extension",
 			"- `boot/main.js` — workbench bootstrap",
 			"- `index.html` — the entry point",

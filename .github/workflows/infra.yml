@@ -1,0 +1,117 @@
+name: Infrastructure
+
+on:
+    push:
+        branches: [main]
+        paths: [infra/**, .github/workflows/infra.yml]
+    pull_request:
+        paths: [infra/**, .github/workflows/infra.yml]
+    workflow_dispatch:
+
+# OIDC token read permission. No long-lived secrets anywhere.
+permissions:
+    id-token: write
+    contents: read
+    pull-requests: write # for Pulumi PR comments
+
+concurrency:
+    group: infra-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    pulumi:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+            - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+              with:
+                  node-version: 24
+            - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+            - name: Install infra deps
+              working-directory: infra
+              run: pnpm install --frozen-lockfile
+
+            # OIDC → Cloudflare API token exchange. The Cloudflare side
+            # is configured (one-time, manual) to trust this repo's
+            # OIDC issuer; see infra/README.md. After this step,
+            # CLOUDFLARE_API_TOKEN is set in the env for subsequent
+            # steps and is short-lived (~1 hour).
+            - name: Exchange GitHub OIDC → Cloudflare API token
+              uses: cloudflare/cloudflare-login-action@v1
+              with:
+                  account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+                  # The mapping of OIDC claim → Cloudflare identity is
+                  # configured in the Cloudflare dashboard. See
+                  # infra/README.md for the exact policy text.
+
+            # OIDC → temporary R2 S3 credentials. Pulumi's state backend
+            # is s3:// against R2; it needs AWS-format creds, so we
+            # mint them here using the (federated) Cloudflare token.
+            - name: Mint temporary R2 S3 credentials for state backend
+              id: r2-creds
+              run: |
+                  set -euo pipefail
+                  RESP=$(curl -sSf -X POST \
+                    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    "https://api.cloudflare.com/client/v4/accounts/${{ vars.CLOUDFLARE_ACCOUNT_ID }}/r2/temp-access-credentials" \
+                    -d @- <<'EOF'
+                  {
+                    "bucket": "pulumi-state",
+                    "permission": "admin-read-write",
+                    "ttlSeconds": 3600
+                  }
+                  EOF
+                  )
+                  echo "::add-mask::$(echo "$RESP" | jq -r '.result.accessKeyId')"
+                  echo "::add-mask::$(echo "$RESP" | jq -r '.result.secretAccessKey')"
+                  echo "AWS_ACCESS_KEY_ID=$(echo "$RESP" | jq -r '.result.accessKeyId')" >> "$GITHUB_ENV"
+                  echo "AWS_SECRET_ACCESS_KEY=$(echo "$RESP" | jq -r '.result.secretAccessKey')" >> "$GITHUB_ENV"
+                  echo "AWS_SESSION_TOKEN=$(echo "$RESP" | jq -r '.result.sessionToken')" >> "$GITHUB_ENV"
+
+            - name: Pulumi login (self-hosted R2 backend)
+              run: |
+                  pulumi login "s3://pulumi-state?endpoint=${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com&region=auto&s3ForcePathStyle=true"
+
+            # The Pulumi program reads `cloudflare:accountId` as a
+            # config key, so we plumb it in from the repo variable on
+            # each run rather than committing the ID to
+            # Pulumi.production.yaml. `--create` makes this work on the
+            # very first run before the stack has been initialized.
+            - name: Initialize Pulumi stack + config
+              working-directory: infra
+              env:
+                  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+              run: |
+                  pulumi stack select production --create --non-interactive
+                  pulumi config set cloudflare:accountId "${{ vars.CLOUDFLARE_ACCOUNT_ID }}" --non-interactive
+
+            - name: Pulumi preview (pull_request)
+              if: github.event_name == 'pull_request'
+              uses: pulumi/actions@v6
+              with:
+                  command: preview
+                  stack-name: production
+                  work-dir: infra
+                  comment-on-pr: true
+              env:
+                  CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+                  CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+                  # Encryption of Pulumi state secrets — uses a
+                  # passphrase stored as a repo secret. Not strictly
+                  # needed for this stack (no secrets in state) but
+                  # keeps the setup future-proof.
+                  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
+            - name: Pulumi up (push to main)
+              if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+              uses: pulumi/actions@v6
+              with:
+                  command: up
+                  stack-name: production
+                  work-dir: infra
+              env:
+                  CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+                  CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+                  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
