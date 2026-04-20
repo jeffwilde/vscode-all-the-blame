@@ -1,0 +1,9 @@
+config:
+  # GitHub repo that's trusted by the OIDC federation. Used in the
+  # R2 bucket CORS policy and referenced from the Pages project
+  # connection.
+  vscode-all-the-blame:githubRepo: jeffwilde/vscode-all-the-blame
+
+  # Pages project slug. Becomes part of the default preview URL:
+  # <project>.pages.dev and <hash>.<project>.pages.dev per PR.
+  vscode-all-the-blame:pagesProjectName: all-the-blame-preview

@@ -1,0 +1,54 @@
+name: Upload vscode-web base
+
+# One-shot workflow: fetches the current stable vscode-web tarball and
+# uploads it to the shared R2 bucket under `<version>/` and `latest/`.
+# Run manually when you want to bump the shared base (typically once
+# per VS Code release cycle — per-PR previews don't need it to rerun).
+#
+# Auth: long-lived CLOUDFLARE_API_TOKEN secret (see infra/README.md),
+# then r2/temp-access-credentials for ~1h S3 creds so the actual
+# upload session is short-lived.
+
+on:
+    workflow_dispatch:
+        inputs:
+            quality:
+                description: "VS Code release channel"
+                required: true
+                default: stable
+                type: choice
+                options: [stable, insider]
+
+permissions:
+    contents: read
+
+jobs:
+    upload:
+        runs-on: ubuntu-latest
+        env:
+            CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+            CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        steps:
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+            - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+              with:
+                  node-version: 24
+
+            - name: Mint temporary R2 S3 credentials
+              run: |
+                  set -euo pipefail
+                  RESP=$(curl -sSf -X POST \
+                    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/temp-access-credentials" \
+                    -d '{"bucket":"vscode-web-base","permission":"admin-read-write","ttlSeconds":3600}')
+                  echo "::add-mask::$(echo "$RESP" | jq -r '.result.accessKeyId')"
+                  echo "::add-mask::$(echo "$RESP" | jq -r '.result.secretAccessKey')"
+                  echo "AWS_ACCESS_KEY_ID=$(echo "$RESP" | jq -r '.result.accessKeyId')" >> "$GITHUB_ENV"
+                  echo "AWS_SECRET_ACCESS_KEY=$(echo "$RESP" | jq -r '.result.secretAccessKey')" >> "$GITHUB_ENV"
+                  echo "AWS_SESSION_TOKEN=$(echo "$RESP" | jq -r '.result.sessionToken')" >> "$GITHUB_ENV"
+                  echo "AWS_DEFAULT_REGION=auto" >> "$GITHUB_ENV"
+
+            - name: Download + upload vscode-web base
+              run: |
+                  node scripts/upload-vscode-web-base.mjs --quality=${{ inputs.quality }}
