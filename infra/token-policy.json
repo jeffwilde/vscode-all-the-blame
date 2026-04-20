@@ -12,15 +12,20 @@
 		"this file is not. See infra/README.md §Token-as-code."
 	],
 	"name": "all-the-blame-infra",
-	"ttl_days": 90,
+	"ttl_days": null,
+	"$ttl_comment": "null = no expiry. Revoke manually in the dashboard if needed.",
 	"permissions": [
 		{
 			"name": "Workers R2 Storage Write",
-			"why": "R2 bucket CRUD (pulumi-state, vscode-web-base), managed domain, CORS, /r2/temp-access-credentials"
+			"why": "R2 bucket CRUD (pulumi-state, previews), managed domain, CORS, /r2/temp-access-credentials"
 		},
 		{
-			"name": "Pages Write",
-			"why": "Create + update the all-the-blame-preview Pages project"
+			"name": "Workers Scripts Write",
+			"why": "Deploy the preview-router Worker"
+		},
+		{
+			"name": "Workers KV Storage Write",
+			"why": "Write per-PR SHA pointers to the preview-pointers KV namespace from CI"
 		}
 	],
 	"resources": {

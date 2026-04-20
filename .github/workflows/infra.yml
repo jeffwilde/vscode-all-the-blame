@@ -3,9 +3,9 @@ name: Infrastructure
 on:
     push:
         branches: [main]
-        paths: [infra/**, .github/workflows/infra.yml]
+        paths: [infra/**, worker/**, .github/workflows/infra.yml]
     pull_request:
-        paths: [infra/**, .github/workflows/infra.yml]
+        paths: [infra/**, worker/**, .github/workflows/infra.yml]
     workflow_dispatch:
 
 permissions:
@@ -20,10 +20,10 @@ jobs:
     pulumi:
         runs-on: ubuntu-latest
         env:
-            # Long-lived, narrowly-scoped (R2 Edit + Pages Edit on this
-            # account only) token. Cloudflare does not currently support
-            # OIDC federation for its own API (Apr 2026), so this stays
-            # as a repo secret. Rotate every 90 days. See infra/README.md.
+            # Long-lived, narrowly-scoped token (see token-policy.json).
+            # Cloudflare does not currently support OIDC federation for
+            # its own API (Apr 2026), so this stays as a repo secret.
+            # Manual rotation via infra/scripts/mint-infra-token.sh.
             CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
             CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         steps:
@@ -36,6 +36,16 @@ jobs:
             - name: Install infra deps
               working-directory: infra
               run: pnpm install --frozen-lockfile
+
+            # Pulumi reads worker/dist/index.js at program-evaluation
+            # time and inlines it as the WorkersScript content. Build
+            # here so `pulumi up` always sees the latest code.
+            - name: Build Worker bundle
+              working-directory: worker
+              run: |
+                  pnpm install --frozen-lockfile
+                  pnpm run typecheck
+                  pnpm run build
 
             # Mint ~1h S3-format credentials for R2 from the parent
             # token. Pulumi's state backend is s3:// against R2; this

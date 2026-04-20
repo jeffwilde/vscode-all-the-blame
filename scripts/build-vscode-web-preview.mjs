@@ -38,10 +38,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 //
 // By default we build a fat deployment that bundles the full vscode-web
 // tree under ./vscode-web/. In `--base-url=...` mode we instead point
-// WORKBENCH_WEB_BASE_URL at a remote host (typically the shared R2
-// bucket) and skip the 115 MB copy. This is the mode used for
-// per-PR Cloudflare Pages previews, where only the extension delta
-// ships in each deploy.
+// WORKBENCH_WEB_BASE_URL at a remote host (or a Worker-served path
+// like `/base/latest`) and skip the 115 MB copy. This is the mode used
+// for per-PR previews on the Cloudflare Worker, where only the ~1 MB
+// extension delta ships in each deploy.
 const ARGS = Object.fromEntries(
 	process.argv.slice(2).flatMap((arg) => {
 		const m = /^--([^=]+)=(.*)$/.exec(arg);

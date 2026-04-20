@@ -66,26 +66,45 @@ ID_JSON=$(echo "$WANTED_NAMES" | while IFS= read -r name; do
 done | jq -s '.')
 
 # --- Build payload ---
-EXPIRES=$(date -u -d "+$TTL_DAYS days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
-	|| date -u -v+"${TTL_DAYS}"d +%Y-%m-%dT%H:%M:%SZ)
+# Omit `expires_on` entirely when the policy says ttl_days is null —
+# Cloudflare treats that as "no expiration". Manual revocation only.
 ACCOUNT_RESOURCE="com.cloudflare.api.account.$CLOUDFLARE_ACCOUNT_ID"
 
-BODY=$(jq -n \
-	--arg name "$NAME (rotated $(date -u +%Y-%m-%d))" \
-	--arg acct "$ACCOUNT_RESOURCE" \
-	--arg exp  "$EXPIRES" \
-	--argjson groups "$ID_JSON" \
-	'{
-		name: $name,
-		policies: [{
-			effect: "allow",
-			permission_groups: $groups,
-			resources: { ($acct): "*" }
-		}],
-		expires_on: $exp
-	}')
+if [[ "$TTL_DAYS" == "null" || -z "$TTL_DAYS" ]]; then
+	EXPIRES_DISPLAY="never (manual revocation only)"
+	BODY=$(jq -n \
+		--arg name "$NAME (rotated $(date -u +%Y-%m-%d))" \
+		--arg acct "$ACCOUNT_RESOURCE" \
+		--argjson groups "$ID_JSON" \
+		'{
+			name: $name,
+			policies: [{
+				effect: "allow",
+				permission_groups: $groups,
+				resources: { ($acct): "*" }
+			}]
+		}')
+else
+	EXPIRES=$(date -u -d "+$TTL_DAYS days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+		|| date -u -v+"${TTL_DAYS}"d +%Y-%m-%dT%H:%M:%SZ)
+	EXPIRES_DISPLAY="$EXPIRES"
+	BODY=$(jq -n \
+		--arg name "$NAME (rotated $(date -u +%Y-%m-%d))" \
+		--arg acct "$ACCOUNT_RESOURCE" \
+		--arg exp  "$EXPIRES" \
+		--argjson groups "$ID_JSON" \
+		'{
+			name: $name,
+			policies: [{
+				effect: "allow",
+				permission_groups: $groups,
+				resources: { ($acct): "*" }
+			}],
+			expires_on: $exp
+		}')
+fi
 
-echo "creating token '$NAME' (expires $EXPIRES)..." >&2
+echo "creating token '$NAME' (expires: $EXPIRES_DISPLAY)..." >&2
 jq -r '.permission_groups[] | "  + \(.)"' <<<"$(echo "$WANTED_NAMES" | jq -R . | jq -s '{permission_groups: .}')" >&2
 
 RESP=$(api -X POST "https://api.cloudflare.com/client/v4/user/tokens" --data "$BODY")
