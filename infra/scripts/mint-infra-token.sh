@@ -51,7 +51,7 @@ WANTED_NAMES=$(jq -r '.permissions[].name' "$POLICY")
 # name in the policy doesn't match anything live, so typos don't
 # silently produce under-scoped tokens.
 echo "resolving permission group IDs..." >&2
-GROUPS=$(api "https://api.cloudflare.com/client/v4/user/tokens/permission_groups")
+GROUPS=$(api "https://api.cloudflare.com/client/v4/user/tokens/permission_groups?per_page=200")
 
 ID_JSON=$(echo "$WANTED_NAMES" | while IFS= read -r name; do
 	id=$(jq -r --arg n "$name" '.result[] | select(.name == $n) | .id' <<<"$GROUPS")

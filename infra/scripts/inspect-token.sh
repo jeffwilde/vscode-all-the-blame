@@ -37,7 +37,7 @@ api() { curl -sSf "${AUTH_HEADERS[@]}" -H "Content-Type: application/json" "$@";
 MODE="${1:-list}"
 
 # Load the permission-group name→id map once (saves API calls below).
-GROUPS=$(api "https://api.cloudflare.com/client/v4/user/tokens/permission_groups")
+GROUPS=$(api "https://api.cloudflare.com/client/v4/user/tokens/permission_groups?per_page=200")
 id_to_name() { jq -r --arg id "$1" '.result[] | select(.id == $id) | .name' <<<"$GROUPS"; }
 
 case "$MODE" in
