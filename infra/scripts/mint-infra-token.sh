@@ -51,15 +51,18 @@ WANTED_NAMES=$(jq -r '.permissions[].name' "$POLICY")
 # name in the policy doesn't match anything live, so typos don't
 # silently produce under-scoped tokens.
 echo "resolving permission group IDs..." >&2
-GROUPS=$(api "https://api.cloudflare.com/client/v4/user/tokens/permission_groups?per_page=200")
+# NB: do not name this PERM_GROUPS_JSON variable `GROUPS` — bash reserves
+# `GROUPS` as a readonly special array of the current user's group IDs;
+# `GROUPS=...` is silently ignored and `$GROUPS` expands to the primary GID.
+PERM_GROUPS_JSON=$(api "https://api.cloudflare.com/client/v4/user/tokens/permission_groups?per_page=200")
 
 ID_JSON=$(echo "$WANTED_NAMES" | while IFS= read -r name; do
-	id=$(jq -r --arg n "$name" '.result[] | select(.name == $n) | .id' <<<"$GROUPS")
+	id=$(jq -r --arg n "$name" '.result[] | select(.name == $n) | .id' <<<"$PERM_GROUPS_JSON")
 	if [[ -z "$id" || "$id" == "null" ]]; then
 		echo "ERROR: no permission group named '$name' found" >&2
 		echo "candidates containing similar text:" >&2
 		word=$(awk '{print $1}' <<<"$name")
-		jq -r --arg w "$word" '.result[] | select(.name | test($w; "i")) | "  \(.id)  \(.name)"' <<<"$GROUPS" >&2
+		jq -r --arg w "$word" '.result[] | select(.name | test($w; "i")) | "  \(.id)  \(.name)"' <<<"$PERM_GROUPS_JSON" >&2
 		exit 1
 	fi
 	jq -n --arg id "$id" '{id: $id, meta: {}}'
