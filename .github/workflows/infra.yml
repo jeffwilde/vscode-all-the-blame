@@ -75,7 +75,7 @@ jobs:
 
             - name: Pulumi login (self-hosted R2 backend)
               run: |
-                  pulumi login "s3://pulumi-state?endpoint=${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com&region=auto&s3ForcePathStyle=true"
+                  pulumi login "s3://pulumi-state/jeffwilde?endpoint=${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com&region=auto&s3ForcePathStyle=true"
 
             # The Pulumi program reads `cloudflare:accountId` as a
             # config key, so we plumb it in from the repo variable on

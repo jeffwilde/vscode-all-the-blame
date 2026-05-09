@@ -7,7 +7,7 @@ declared in [`index.ts`](./index.ts) and managed by Pulumi.
 
 | Resource | Purpose |
 | --- | --- |
-| R2 bucket `pulumi-state` | Self-hosted Pulumi state backend (no Pulumi Cloud) |
+| R2 bucket `pulumi-state` | Self-hosted Pulumi state backend (no Pulumi Cloud). State for this project lives under the `jeffwilde/` prefix so the bucket can host other projects later. |
 | R2 bucket `previews` | All preview assets: `base/<ver>/…`, `pr/<n>/<sha>/…`, `main/<sha>/…` |
 | KV namespace `preview-pointers` | Atomic per-PR SHA pointers (`pr:<n>` → `<sha>`) |
 | Worker `preview-router` | Routes `/pr/<n>/…` requests to the current SHA via KV lookup |
@@ -28,7 +28,7 @@ it at runtime:
 ```
 CLOUDFLARE_API_TOKEN  (repo secret, manual revocation only)
    └─► POST /r2/temp-access-credentials  ──►  AWS_ACCESS_KEY_ID/... (~1h TTL)
-   │    └─► pulumi login s3://pulumi-state?…                (state backend)
+   │    └─► pulumi login s3://pulumi-state/jeffwilde?…      (state backend)
    │    └─► aws s3 sync previews/…                          (per-PR upload)
    │
    └─► Pulumi Cloudflare provider                           (manages all resources)
@@ -169,7 +169,7 @@ export AWS_SESSION_TOKEN=$(echo "$RESP" | jq -r '.result.sessionToken')
 # Build the worker bundle first — Pulumi reads it at program time:
 (cd ../worker && pnpm install && pnpm run build)
 
-pulumi login "s3://pulumi-state?endpoint=$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com&region=auto&s3ForcePathStyle=true"
+pulumi login "s3://pulumi-state/jeffwilde?endpoint=$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com&region=auto&s3ForcePathStyle=true"
 pulumi stack select production
 pulumi preview
 ```

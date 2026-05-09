@@ -14,7 +14,11 @@ description: >
 # invocation time so it's not committed. See infra/README.md.
 #
 # backend:
-#   url: s3://pulumi-state?endpoint=<ACCT>.r2.cloudflarestorage.com&region=auto&s3ForcePathStyle=true
+#   url: s3://pulumi-state/jeffwilde?endpoint=<ACCT>.r2.cloudflarestorage.com&region=auto&s3ForcePathStyle=true
+#
+# The `/jeffwilde` prefix namespaces state by GitHub owner so the
+# bucket can host multiple Pulumi projects in the future. Each
+# project's stacks live under <prefix>/.pulumi/stacks/<project>/.
 
 config:
   cloudflare:accountId:
