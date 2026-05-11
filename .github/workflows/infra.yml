@@ -120,3 +120,18 @@ jobs:
                   work-dir: infra
               env:
                   PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
+            # Apply permissive CORS to the previews bucket. Done here
+            # instead of in Pulumi because @pulumi/cloudflare v5 dropped
+            # R2BucketCors. vscode-web's blob:/worker module imports need
+            # cross-origin access; locking down to specific origins is a
+            # future hardening pass.
+            - name: Apply CORS to previews bucket
+              if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+              run: |
+                  set -euo pipefail
+                  curl -sSf -X PUT \
+                    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/buckets/previews/cors" \
+                    -d '{"rules":[{"allowed":{"methods":["GET","HEAD"],"origins":["*"]},"exposeHeaders":["ETag"],"maxAgeSeconds":86400}]}'

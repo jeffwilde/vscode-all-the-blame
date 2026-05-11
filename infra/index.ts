@@ -47,23 +47,9 @@ const previewsBucket = new cloudflare.R2Bucket("previews", {
 	location: "wnam",
 });
 
-// Permissive CORS — the Worker serves responses same-origin, but
-// vscode-web fetches some resources cross-origin style (module imports
-// via blob: URLs, webworker iframes). Easier to allow * than to audit.
-const _previewsCors = new cloudflare.R2BucketCors("previews-cors", {
-	accountId,
-	bucketName: previewsBucket.name,
-	rules: [
-		{
-			allowed: {
-				methods: ["GET", "HEAD"],
-				origins: ["*"],
-			},
-			exposeHeaders: ["ETag"],
-			maxAgeSeconds: 86400,
-		},
-	],
-});
+// CORS for the previews bucket is applied by a post-Pulumi step in
+// .github/workflows/infra.yml — @pulumi/cloudflare v5 dropped the
+// R2BucketCors resource and the v6 successor isn't released yet.
 
 // --- KV namespace for per-PR pointers ---
 
@@ -85,19 +71,19 @@ const workerContent = fs.existsSync(workerBundlePath)
 
 const routerWorker = new cloudflare.WorkersScript(workerName, {
 	accountId,
-	scriptName: workerName,
+	name: workerName,
 	content: workerContent,
-	mainModule: "index.js",
+	module: true,
 	compatibilityDate: "2026-04-01",
-	bindings: [
+	r2BucketBindings: [
 		{
 			name: "PREVIEWS",
-			type: "r2_bucket",
 			bucketName: previewsBucket.name,
 		},
+	],
+	kvNamespaceBindings: [
 		{
 			name: "POINTERS",
-			type: "kv_namespace",
 			namespaceId: pointersKv.id,
 		},
 	],
@@ -113,5 +99,5 @@ const routerWorker = new cloudflare.WorkersScript(workerName, {
 export const stateBucketName = stateBucket.name;
 export const previewsBucketName = previewsBucket.name;
 export const pointersKvId = pointersKv.id;
-export const workerScriptName = routerWorker.scriptName;
+export const workerScriptName = routerWorker.name;
 export const previewsBaseUrl = pulumi.interpolate`https://${workerName}.${accountId}.workers.dev`;
