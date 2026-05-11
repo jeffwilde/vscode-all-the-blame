@@ -1,0 +1,35 @@
+{
+	"$comment": [
+		"Declarative spec of the Cloudflare API token used by .github/workflows/infra.yml",
+		"and .github/workflows/upload-vscode-web-base.yml.",
+		"",
+		"This file is the source of truth for what the token can do.",
+		"- infra/scripts/mint-infra-token.sh reads it to create/rotate the token.",
+		"- infra/scripts/inspect-token.sh reads it to diff against live Cloudflare state.",
+		"",
+		"Editing the permissions here + re-running mint is how you add/remove scopes.",
+		"Never click through the dashboard — the dashboard selection is ephemeral,",
+		"this file is not. See infra/README.md §Token-as-code."
+	],
+	"name": "all-the-blame-infra",
+	"ttl_days": null,
+	"$ttl_comment": "null = no expiry. Revoke manually in the dashboard if needed.",
+	"permissions": [
+		{
+			"name": "Workers R2 Storage Write",
+			"why": "R2 bucket CRUD (pulumi-state, previews), managed domain, CORS, /r2/temp-access-credentials"
+		},
+		{
+			"name": "Workers Scripts Write",
+			"why": "Deploy the preview-router Worker"
+		},
+		{
+			"name": "Workers KV Storage Write",
+			"why": "Write per-PR SHA pointers to the preview-pointers KV namespace from CI"
+		}
+	],
+	"resources": {
+		"scope": "account",
+		"note": "Scoped to $CLOUDFLARE_ACCOUNT_ID only. Never 'all accounts'."
+	}
+}

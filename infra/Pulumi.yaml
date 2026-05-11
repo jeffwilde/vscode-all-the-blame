@@ -1,0 +1,25 @@
+name: vscode-all-the-blame
+runtime:
+  name: nodejs
+  options:
+    packagemanager: pnpm
+description: >
+  Infrastructure for hosting the All the Blame public preview. Defines the
+  Cloudflare R2 buckets (shared vscode-web base + Pulumi state), the
+  Cloudflare Pages project that serves per-PR previews, and any Workers
+  that sit in front of it.
+
+# Self-hosted state in R2. The endpoint URL requires the Cloudflare
+# account ID — passed through the PULUMI_BACKEND_URL env var at CLI
+# invocation time so it's not committed. See infra/README.md.
+#
+# backend:
+#   url: s3://pulumi-state/jeffwilde?endpoint=<ACCT>.r2.cloudflarestorage.com&region=auto&s3ForcePathStyle=true
+#
+# The `/jeffwilde` prefix namespaces state by GitHub owner so the
+# bucket can host multiple Pulumi projects in the future. Each
+# project's stacks live under <prefix>/.pulumi/stacks/<project>/.
+
+# cloudflare:accountId is not project-namespaced, so it can't be
+# declared here; the workflow sets it per-stack at runtime via
+# `pulumi config set cloudflare:accountId <id>`.

@@ -1,0 +1,135 @@
+name: Infrastructure
+
+on:
+    push:
+        branches: [main]
+        paths: [infra/**, worker/**, .github/workflows/infra.yml]
+    pull_request:
+        paths: [infra/**, worker/**, .github/workflows/infra.yml]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pull-requests: write # for Pulumi PR comments
+
+concurrency:
+    group: infra-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    pulumi:
+        runs-on: ubuntu-latest
+        env:
+            # Long-lived, narrowly-scoped token (see token-policy.json).
+            # Cloudflare does not currently support OIDC federation for
+            # its own API (Apr 2026), so this stays as a repo secret.
+            # Manual rotation via infra/scripts/mint-infra-token.sh.
+            CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+            CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+            # R2 temp-access-credentials requires parentAccessKeyId =
+            # the token id of an R2-capable parent token. Non-secret
+            # (it's just an id), rotates with the parent token. Set via
+            # mint-infra-token.sh (printed to stderr on each mint).
+            CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID: ${{ vars.CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID }}
+        steps:
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+            - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+              with:
+                  node-version: 24
+            - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+            - name: Install infra deps
+              working-directory: infra
+              run: pnpm install --frozen-lockfile
+
+            # Pulumi reads worker/dist/index.js at program-evaluation
+            # time and inlines it as the WorkersScript content. Build
+            # here so `pulumi up` always sees the latest code.
+            - name: Build Worker bundle
+              working-directory: worker
+              run: |
+                  pnpm install --frozen-lockfile
+                  pnpm run typecheck
+                  pnpm run build
+
+            # Mint ~1h S3-format credentials for R2 from the parent
+            # token. Pulumi's state backend is s3:// against R2; this
+            # keeps the credential actually handed to Pulumi short-lived
+            # even though the parent token is long-lived.
+            - name: Mint temporary R2 S3 credentials for state backend
+              id: r2-creds
+              run: |
+                  set -euo pipefail
+                  RESP=$(curl -sSf -X POST \
+                    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/temp-access-credentials" \
+                    -d @- <<EOF
+                  {
+                    "bucket": "pulumi-state",
+                    "parentAccessKeyId": "${CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID}",
+                    "permission": "admin-read-write",
+                    "ttlSeconds": 3600
+                  }
+                  EOF
+                  )
+                  echo "::add-mask::$(echo "$RESP" | jq -r '.result.accessKeyId')"
+                  echo "::add-mask::$(echo "$RESP" | jq -r '.result.secretAccessKey')"
+                  echo "AWS_ACCESS_KEY_ID=$(echo "$RESP" | jq -r '.result.accessKeyId')" >> "$GITHUB_ENV"
+                  echo "AWS_SECRET_ACCESS_KEY=$(echo "$RESP" | jq -r '.result.secretAccessKey')" >> "$GITHUB_ENV"
+                  echo "AWS_SESSION_TOKEN=$(echo "$RESP" | jq -r '.result.sessionToken')" >> "$GITHUB_ENV"
+
+            - name: Pulumi login (self-hosted R2 backend)
+              run: |
+                  pulumi login "s3://pulumi-state/jeffwilde?endpoint=${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com&region=auto&s3ForcePathStyle=true"
+
+            # `--create` makes this work on the very first run before
+            # the stack has been initialized. accountId is read directly
+            # from the env var by the Pulumi program (the v5 cloudflare
+            # provider rejects `cloudflare:accountId` as a config key).
+            - name: Initialize Pulumi stack
+              working-directory: infra
+              env:
+                  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+              run: |
+                  pulumi stack select production --create --non-interactive
+
+            - name: Pulumi preview (pull_request)
+              if: github.event_name == 'pull_request'
+              uses: pulumi/actions@v6
+              with:
+                  command: preview
+                  stack-name: production
+                  work-dir: infra
+                  comment-on-pr: true
+              env:
+                  # Encryption of Pulumi state secrets — uses a
+                  # passphrase stored as a repo secret. Not strictly
+                  # needed for this stack (no secrets in state) but
+                  # keeps the setup future-proof.
+                  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
+            - name: Pulumi up (push to main)
+              if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+              uses: pulumi/actions@v6
+              with:
+                  command: up
+                  stack-name: production
+                  work-dir: infra
+              env:
+                  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
+            # Apply permissive CORS to the previews bucket. Done here
+            # instead of in Pulumi because @pulumi/cloudflare v5 dropped
+            # R2BucketCors. vscode-web's blob:/worker module imports need
+            # cross-origin access; locking down to specific origins is a
+            # future hardening pass.
+            - name: Apply CORS to previews bucket
+              if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+              run: |
+                  set -euo pipefail
+                  curl -sSf -X PUT \
+                    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/buckets/previews/cors" \
+                    -d '{"rules":[{"allowed":{"methods":["GET","HEAD"],"origins":["*"]},"exposeHeaders":["ETag"],"maxAgeSeconds":86400}]}'

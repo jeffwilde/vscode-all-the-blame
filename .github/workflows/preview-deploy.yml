@@ -1,0 +1,204 @@
+name: Preview deploy
+
+# On every PR push: build the extension + vscode-web preview, upload
+# to R2 under pr/<n>/<sha>/, flip the KV pointer, and update the PR
+# comment. A GitHub Deployment tracks each commit's preview status.
+#
+# The delete-then-recreate comment pattern is deliberate: we want the
+# comment to follow the latest commit in the PR timeline so it's
+# obvious the preview is fresh. The marker `<!-- atb-preview -->` is
+# how we find the previous one.
+
+on:
+    pull_request:
+        types: [opened, synchronize, reopened]
+    push:
+        branches: [main]
+
+permissions:
+    contents: read
+    pull-requests: write
+    deployments: write
+
+concurrency:
+    group: preview-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        env:
+            CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+            CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+            CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID: ${{ vars.CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID }}
+            # Computed once at top so every step agrees on the target.
+            PREVIEW_BASE_URL: https://preview-router.${{ vars.CLOUDFLARE_ACCOUNT_ID }}.workers.dev
+        steps:
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+            - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+              with:
+                  node-version: 24
+            - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+            - name: Compute target path
+              id: target
+              run: |
+                  SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+                  if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+                    PR="${{ github.event.pull_request.number }}"
+                    echo "scope=pr"        >> "$GITHUB_OUTPUT"
+                    echo "scope_key=$PR"   >> "$GITHUB_OUTPUT"
+                    echo "r2_prefix=pr/$PR/$SHA"  >> "$GITHUB_OUTPUT"
+                    echo "preview_url=$PREVIEW_BASE_URL/pr/$PR/" >> "$GITHUB_OUTPUT"
+                    echo "pointer_key=pr:$PR" >> "$GITHUB_OUTPUT"
+                    echo "env_name=preview-pr-$PR" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "scope=main" >> "$GITHUB_OUTPUT"
+                    echo "r2_prefix=main/$SHA" >> "$GITHUB_OUTPUT"
+                    echo "preview_url=$PREVIEW_BASE_URL/main/" >> "$GITHUB_OUTPUT"
+                    echo "pointer_key=main" >> "$GITHUB_OUTPUT"
+                    echo "env_name=preview-main" >> "$GITHUB_OUTPUT"
+                  fi
+                  echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+                  echo "sha_short=${SHA:0:8}" >> "$GITHUB_OUTPUT"
+
+            - name: Create GitHub Deployment (in_progress)
+              id: deployment
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const d = await github.rest.repos.createDeployment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          ref: '${{ steps.target.outputs.sha }}',
+                          environment: '${{ steps.target.outputs.env_name }}',
+                          transient_environment: '${{ steps.target.outputs.scope }}' === 'pr',
+                          auto_merge: false,
+                          required_contexts: [],
+                          description: 'Cloudflare Worker preview',
+                      });
+                      await github.rest.repos.createDeploymentStatus({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          deployment_id: d.data.id,
+                          state: 'in_progress',
+                          log_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                      });
+                      return d.data.id;
+                  result-encoding: string
+
+            - name: Install deps + build extension
+              run: |
+                  pnpm install --frozen-lockfile
+                  pnpm run build
+
+            - name: Build preview (slim, points at /base/<ver>)
+              run: |
+                  VSCODE_WEB_VERSION=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(".vscode-web-cache/vscode-web/package.json","utf8")).version)' 2>/dev/null || echo "")
+                  # If the cache isn't present yet, build-vscode-web-preview.mjs will fetch it.
+                  node scripts/build-vscode-web-preview.mjs --base-url="/base/latest"
+
+            - name: Mint R2 S3 credentials
+              run: |
+                  set -euo pipefail
+                  RESP=$(curl -sSf -X POST \
+                    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/temp-access-credentials" \
+                    -d "{\"bucket\":\"previews\",\"parentAccessKeyId\":\"${CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID}\",\"permission\":\"admin-read-write\",\"ttlSeconds\":3600}")
+                  echo "::add-mask::$(echo "$RESP" | jq -r '.result.accessKeyId')"
+                  echo "::add-mask::$(echo "$RESP" | jq -r '.result.secretAccessKey')"
+                  echo "AWS_ACCESS_KEY_ID=$(echo "$RESP" | jq -r '.result.accessKeyId')" >> "$GITHUB_ENV"
+                  echo "AWS_SECRET_ACCESS_KEY=$(echo "$RESP" | jq -r '.result.secretAccessKey')" >> "$GITHUB_ENV"
+                  echo "AWS_SESSION_TOKEN=$(echo "$RESP" | jq -r '.result.sessionToken')" >> "$GITHUB_ENV"
+                  echo "AWS_DEFAULT_REGION=auto" >> "$GITHUB_ENV"
+
+            - name: Upload preview to R2
+              run: |
+                  aws s3 sync preview-vscode-web/ \
+                    "s3://previews/${{ steps.target.outputs.r2_prefix }}/" \
+                    --endpoint-url="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+                    --checksum-algorithm CRC32 \
+                    --only-show-errors
+
+            - name: Flip KV pointer (atomic deploy)
+              run: |
+                  # POINTERS_KV_ID is set as a repo variable after the
+                  # first `infra` workflow run — see infra/README.md
+                  # §Post-bootstrap. Avoids shelling into Pulumi on every
+                  # PR push.
+                  if [[ -z "${{ vars.POINTERS_KV_ID }}" ]]; then
+                    echo "vars.POINTERS_KV_ID is not set — run the Infrastructure workflow first, then copy the pointersKvId output to a repo variable" >&2
+                    exit 1
+                  fi
+                  npx wrangler kv key put \
+                    --namespace-id="${{ vars.POINTERS_KV_ID }}" \
+                    --remote \
+                    "${{ steps.target.outputs.pointer_key }}" \
+                    "${{ steps.target.outputs.sha }}"
+
+            - name: Update PR comment (delete + recreate so it follows the latest commit)
+              if: github.event_name == 'pull_request'
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const marker = '<!-- atb-preview -->';
+                      const pr = context.payload.pull_request.number;
+                      const body = [
+                          marker,
+                          '### Preview',
+                          '',
+                          '| | |',
+                          '|---|---|',
+                          `| **URL** | ${{ steps.target.outputs.preview_url }} |`,
+                          `| **Commit** | \`${{ steps.target.outputs.sha_short }}\` |`,
+                          `| **Deployed** | ${new Date().toISOString().replace('T', ' ').slice(0, 19)} UTC |`,
+                      ].join('\n');
+
+                      const { data: comments } = await github.rest.issues.listComments({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: pr,
+                          per_page: 100,
+                      });
+                      const existing = comments.find(c => c.body && c.body.includes(marker));
+                      if (existing) {
+                          await github.rest.issues.deleteComment({
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              comment_id: existing.id,
+                          });
+                      }
+                      await github.rest.issues.createComment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: pr,
+                          body,
+                      });
+
+            - name: Mark deployment success
+              if: success()
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      await github.rest.repos.createDeploymentStatus({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          deployment_id: '${{ steps.deployment.outputs.result }}',
+                          state: 'success',
+                          environment_url: '${{ steps.target.outputs.preview_url }}',
+                          log_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                      });
+
+            - name: Mark deployment failure
+              if: failure()
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      await github.rest.repos.createDeploymentStatus({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          deployment_id: '${{ steps.deployment.outputs.result }}',
+                          state: 'failure',
+                          log_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                      });
