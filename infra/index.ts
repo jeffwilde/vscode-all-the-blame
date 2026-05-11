@@ -40,11 +40,19 @@ const workerName = cfg.get("workerName") ?? "preview-router";
 
 // --- R2 buckets ---
 
-const stateBucket = new cloudflare.R2Bucket("pulumi-state", {
-	accountId,
-	name: "pulumi-state",
-	location: "WNAM",
-});
+// pulumi-state is pre-created during bootstrap (it has to exist before
+// Pulumi's own state backend can use it). `import:` adopts it into
+// Pulumi state on first apply; after that it's a no-op and could be
+// removed on a future cleanup pass.
+const stateBucket = new cloudflare.R2Bucket(
+	"pulumi-state",
+	{
+		accountId,
+		name: "pulumi-state",
+		location: "WNAM",
+	},
+	{ import: "pulumi-state" },
+);
 
 const previewsBucket = new cloudflare.R2Bucket("previews", {
 	accountId,
