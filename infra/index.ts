@@ -43,13 +43,13 @@ const workerName = cfg.get("workerName") ?? "preview-router";
 const stateBucket = new cloudflare.R2Bucket("pulumi-state", {
 	accountId,
 	name: "pulumi-state",
-	location: "wnam",
+	location: "WNAM",
 });
 
 const previewsBucket = new cloudflare.R2Bucket("previews", {
 	accountId,
 	name: "previews",
-	location: "wnam",
+	location: "WNAM",
 });
 
 // CORS for the previews bucket is applied by a post-Pulumi step in
