@@ -51,7 +51,7 @@ const stateBucket = new cloudflare.R2Bucket(
 		name: "pulumi-state",
 		location: "WNAM",
 	},
-	{ import: "pulumi-state" },
+	{ import: `${accountId}/pulumi-state` },
 );
 
 const previewsBucket = new cloudflare.R2Bucket("previews", {
