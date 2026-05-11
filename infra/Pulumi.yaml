@@ -20,7 +20,6 @@ description: >
 # bucket can host multiple Pulumi projects in the future. Each
 # project's stacks live under <prefix>/.pulumi/stacks/<project>/.
 
-config:
-  cloudflare:accountId:
-    type: string
-    description: Cloudflare account ID. Set via `pulumi config set cloudflare:accountId <id>`.
+# cloudflare:accountId is not project-namespaced, so it can't be
+# declared here; the workflow sets it per-stack at runtime via
+# `pulumi config set cloudflare:accountId <id>`.
