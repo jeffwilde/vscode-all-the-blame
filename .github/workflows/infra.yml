@@ -83,18 +83,16 @@ jobs:
               run: |
                   pulumi login "s3://pulumi-state/jeffwilde?endpoint=${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com&region=auto&s3ForcePathStyle=true"
 
-            # The Pulumi program reads `cloudflare:accountId` as a
-            # config key, so we plumb it in from the repo variable on
-            # each run rather than committing the ID to
-            # Pulumi.production.yaml. `--create` makes this work on the
-            # very first run before the stack has been initialized.
-            - name: Initialize Pulumi stack + config
+            # `--create` makes this work on the very first run before
+            # the stack has been initialized. accountId is read directly
+            # from the env var by the Pulumi program (the v5 cloudflare
+            # provider rejects `cloudflare:accountId` as a config key).
+            - name: Initialize Pulumi stack
               working-directory: infra
               env:
                   PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
               run: |
                   pulumi stack select production --create --non-interactive
-                  pulumi config set cloudflare:accountId "${CLOUDFLARE_ACCOUNT_ID}" --non-interactive
 
             - name: Pulumi preview (pull_request)
               if: github.event_name == 'pull_request'

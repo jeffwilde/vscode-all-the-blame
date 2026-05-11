@@ -29,8 +29,13 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const cfg = new pulumi.Config();
-const cfCfg = new pulumi.Config("cloudflare");
-const accountId = cfCfg.require("accountId");
+// The cloudflare provider in v5 doesn't accept `accountId` as a
+// provider-level config key, so we can't use `pulumi.Config("cloudflare")`.
+// Read it straight from the env var the workflow already sets.
+const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+if (!accountId) {
+	throw new Error("CLOUDFLARE_ACCOUNT_ID env var is required");
+}
 const workerName = cfg.get("workerName") ?? "preview-router";
 
 // --- R2 buckets ---
