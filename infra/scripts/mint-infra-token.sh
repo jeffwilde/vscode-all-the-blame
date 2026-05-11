@@ -117,4 +117,14 @@ if [[ "$(jq -r '.success' <<<"$RESP")" != "true" ]]; then
 	exit 1
 fi
 
+# The token id doubles as the R2 S3 "Access Key ID" parent that
+# /r2/temp-access-credentials needs. Surface it on stderr so a rotation
+# updates the GH repo variable alongside the secret.
+TOKEN_ID=$(jq -r '.result.id' <<<"$RESP")
+echo "" >&2
+echo "Token id (set as repo variable CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID):" >&2
+echo "  $TOKEN_ID" >&2
+echo "  gh variable set CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID --body $TOKEN_ID" >&2
+echo "" >&2
+
 jq -r '.result.value' <<<"$RESP"

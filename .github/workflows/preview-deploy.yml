@@ -30,6 +30,7 @@ jobs:
         env:
             CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
             CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+            CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID: ${{ vars.CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID }}
             # Computed once at top so every step agrees on the target.
             PREVIEW_BASE_URL: https://preview-router.${{ vars.CLOUDFLARE_ACCOUNT_ID }}.workers.dev
         steps:
@@ -104,7 +105,7 @@ jobs:
                     -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
                     -H "Content-Type: application/json" \
                     "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/temp-access-credentials" \
-                    -d '{"bucket":"previews","permission":"admin-read-write","ttlSeconds":3600}')
+                    -d "{\"bucket\":\"previews\",\"parentAccessKeyId\":\"${CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID}\",\"permission\":\"admin-read-write\",\"ttlSeconds\":3600}")
                   echo "::add-mask::$(echo "$RESP" | jq -r '.result.accessKeyId')"
                   echo "::add-mask::$(echo "$RESP" | jq -r '.result.secretAccessKey')"
                   echo "AWS_ACCESS_KEY_ID=$(echo "$RESP" | jq -r '.result.accessKeyId')" >> "$GITHUB_ENV"

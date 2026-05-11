@@ -39,6 +39,13 @@ The parent token is used directly by Pulumi and the KV writes, and is
 used once per run to mint temp S3 creds for R2 operations. Pulumi's
 own state-backend credentials are always short-lived.
 
+The `/r2/temp-access-credentials` endpoint requires a `parentAccessKeyId`
+field — the **token id** of an R2-capable parent token, which scopes
+the derived temp creds. The mint script emits this id to stderr on
+each run; we store it as the repo variable
+`CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID` (non-secret, rotates with the
+token).
+
 ## One-time bootstrap (manual)
 
 ### 1. Claim a workers.dev subdomain
@@ -91,10 +98,14 @@ CLOUDFLARE_API_TOKEN=<the token you just minted> \
 
 ```sh
 gh variable set CLOUDFLARE_ACCOUNT_ID --body "<account id>"
+gh variable set CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID --body "<token id from step 2>"
 gh secret set PULUMI_CONFIG_PASSPHRASE                    # prompts
 ```
 
 `CLOUDFLARE_API_TOKEN` should already be set from step 2.
+`CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID` is the token id printed to stderr
+by `mint-infra-token.sh`; the temp-credentials endpoint won't accept a
+request without it.
 `PULUMI_CONFIG_PASSPHRASE` encrypts Pulumi state secrets (nothing is
 currently encrypted but the backend requires it).
 
@@ -138,8 +149,10 @@ Re-run when you want to bump the VS Code release.
 Tokens don't expire, but rotate if you suspect compromise:
 
 ```sh
-# Same command as bootstrap — emits a new token, overwrites the secret:
+# Same command as bootstrap — emits a new token, overwrites the secret.
+# The new token id is printed to stderr; copy it into the repo variable.
 infra/scripts/mint-infra-token.sh | gh secret set CLOUDFLARE_API_TOKEN
+gh variable set CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID --body "<id from stderr>"
 
 # Delete the old token in the dashboard:
 #   https://dash.cloudflare.com/profile/api-tokens
@@ -157,11 +170,12 @@ export CLOUDFLARE_API_TOKEN=<your scoped token>
 export CLOUDFLARE_ACCOUNT_ID=<account id>
 
 # Mint R2 S3 creds (same curl as the workflow):
+export CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID=<token id from mint script's stderr>
 RESP=$(curl -sSf -X POST \
   -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   -H "Content-Type: application/json" \
   "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/temp-access-credentials" \
-  -d '{"bucket":"pulumi-state","permission":"admin-read-write","ttlSeconds":3600}')
+  -d "{\"bucket\":\"pulumi-state\",\"parentAccessKeyId\":\"$CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID\",\"permission\":\"admin-read-write\",\"ttlSeconds\":3600}")
 export AWS_ACCESS_KEY_ID=$(echo "$RESP" | jq -r '.result.accessKeyId')
 export AWS_SECRET_ACCESS_KEY=$(echo "$RESP" | jq -r '.result.secretAccessKey')
 export AWS_SESSION_TOKEN=$(echo "$RESP" | jq -r '.result.sessionToken')

@@ -26,6 +26,11 @@ jobs:
             # Manual rotation via infra/scripts/mint-infra-token.sh.
             CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
             CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+            # R2 temp-access-credentials requires parentAccessKeyId =
+            # the token id of an R2-capable parent token. Non-secret
+            # (it's just an id), rotates with the parent token. Set via
+            # mint-infra-token.sh (printed to stderr on each mint).
+            CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID: ${{ vars.CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID }}
         steps:
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
             - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
@@ -59,9 +64,10 @@ jobs:
                     -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
                     -H "Content-Type: application/json" \
                     "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/temp-access-credentials" \
-                    -d @- <<'EOF'
+                    -d @- <<EOF
                   {
                     "bucket": "pulumi-state",
+                    "parentAccessKeyId": "${CLOUDFLARE_R2_PARENT_ACCESS_KEY_ID}",
                     "permission": "admin-read-write",
                     "ttlSeconds": 3600
                   }
