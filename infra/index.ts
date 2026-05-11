@@ -41,20 +41,14 @@ const workerName = cfg.get("workerName") ?? "preview-router";
 // --- R2 buckets ---
 
 // pulumi-state is pre-created during bootstrap (it has to exist before
-// Pulumi's own state backend can use it). `import:` adopts it into
-// Pulumi state on first apply; after that it's a no-op and could be
-// removed on a future cleanup pass.
-// Location must match the bucket as-created — it's a force-new
-// attribute, and the bucket was provisioned in ENAM during bootstrap.
-const stateBucket = new cloudflare.R2Bucket(
-	"pulumi-state",
-	{
-		accountId,
-		name: "pulumi-state",
-		location: "ENAM",
-	},
-	{ import: `${accountId}/pulumi-state` },
-);
+// Pulumi's own state backend can use it); adopted into Pulumi state
+// via an `import:` resource option on the first apply, then dropped.
+// Location is force-new and was set to ENAM at bootstrap time.
+const stateBucket = new cloudflare.R2Bucket("pulumi-state", {
+	accountId,
+	name: "pulumi-state",
+	location: "ENAM",
+});
 
 const previewsBucket = new cloudflare.R2Bucket("previews", {
 	accountId,
