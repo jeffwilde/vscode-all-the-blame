@@ -22,4 +22,5 @@ description: >
 
 config:
   cloudflare:accountId:
+    type: string
     description: Cloudflare account ID. Set via `pulumi config set cloudflare:accountId <id>`.
