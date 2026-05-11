@@ -1,13 +1,14 @@
 /*
  * One-shot helper: download the current stable vscode-web tarball,
- * extract it, and upload the unpacked tree to the R2 bucket
- * `vscode-web-base/` under a version-keyed prefix.
+ * extract it, and upload the unpacked tree to the R2 `previews` bucket
+ * under a `base/<version>/` prefix (the Worker reads /base/<ver>/<rest>
+ * from this same bucket).
  *
  * Runs from GitHub Actions (.github/workflows/upload-vscode-web-base.yml)
- * under OIDC-minted temporary R2 S3 credentials.
+ * under r2/temp-access-credentials-minted short-lived S3 creds.
  *
- * Per-PR Cloudflare Pages previews then point
- *     WORKBENCH_WEB_BASE_URL = https://vscode-web-base.r2.dev/<version>
+ * Per-PR previews point
+ *     WORKBENCH_WEB_BASE_URL = <Worker URL>/base/latest
  * so the 115 MB payload is hosted ONCE and shared across every PR.
  *
  * Env (all required):
@@ -16,7 +17,7 @@
  *       — temporary R2 S3 creds, minted by the workflow
  *
  * Usage:
- *   node scripts/upload-vscode-web-base.mjs [--quality=stable] [--bucket=vscode-web-base]
+ *   node scripts/upload-vscode-web-base.mjs [--quality=stable] [--bucket=previews]
  */
 
 import { createHash } from "node:crypto";
@@ -43,7 +44,7 @@ const ARGS = Object.fromEntries(
 	}),
 );
 const QUALITY = ARGS.quality || "stable";
-const BUCKET = ARGS.bucket || "vscode-web-base";
+const BUCKET = ARGS.bucket || "previews";
 const ACCOUNT_ID = required("CLOUDFLARE_ACCOUNT_ID");
 
 function required(name) {
@@ -74,10 +75,11 @@ execSync(`tar -xzf ${TARBALL} -C ${EXTRACTED} --strip-components=1`);
 const version = JSON.parse(readFileSync(join(EXTRACTED, "package.json"), "utf8")).version;
 console.log(`vscode-web version: ${version}`);
 
-// Upload tree under <version>/ prefix. We ALSO upload to `latest/` so
-// previews that don't pin can follow the latest base.
+// Upload tree under base/<version>/ prefix. We ALSO upload to
+// base/latest/ so previews that don't pin can follow the latest base.
+// The Worker reads /base/<ver>/<rest> from this same bucket.
 const endpoint = `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`;
-for (const prefix of [version, "latest"]) {
+for (const prefix of [`base/${version}`, "base/latest"]) {
 	const dest = `s3://${BUCKET}/${prefix}/`;
 	console.log(`uploading to ${dest} …`);
 	// --checksum-algorithm CRC32 keeps aws-cli happy against R2 which
